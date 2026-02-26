@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type NotificationRow = {
@@ -43,11 +43,28 @@ function timeAgoLabel(iso: string) {
 
 export default function NotificationsContent({
   initialNotifications,
+  initialPrefs,
 }: {
   initialNotifications: NotificationRow[];
+  initialPrefs: {
+    notify_rate: boolean;
+    notify_transactions: boolean;
+  };
 }) {
   const [items, setItems] = useState<NotificationRow[]>(initialNotifications);
+  const [prefs, setPrefs] = useState({
+    notify_rate: initialPrefs.notify_rate,
+    notify_transactions: initialPrefs.notify_transactions,
+  });
+  const [userId, setUserId] = useState<string | null>(null);
   const unreadCount = useMemo(() => items.filter((n) => !n.read).length, [items]);
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data?.user?.id ?? null);
+    });
+  }, []);
 
   async function markAsRead(id: string) {
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
@@ -57,6 +74,43 @@ export default function NotificationsContent({
     } catch {
       setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: false } : n)));
     }
+  }
+
+  async function persistPrefs(patch: Partial<typeof prefs>) {
+    if (!userId) return;
+    const supabase = createSupabaseBrowserClient();
+    await supabase.from("users_info").update(patch).eq("id", userId);
+  }
+
+  function Toggle({
+    checked,
+    onCheckedChange,
+    label,
+  }: {
+    checked: boolean;
+    onCheckedChange: (next: boolean) => void;
+    label: string;
+  }) {
+    return (
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        onClick={() => onCheckedChange(!checked)}
+        className={
+          "relative inline-flex h-[19px] w-[37px] items-center rounded-full border duration-300 ease-in-out transition-all cursor-pointer " +
+          (checked ? "bg-[#3B82F6] border-[#3B82F6]" : "bg-[#2D2A3F] border-[#2D2A3F]")
+        }
+      >
+        <span
+          className={
+            "inline-block h-[13px] w-[13px] rounded-full bg-white transition-all duration-300 ease-in-out " +
+            (checked ? "translate-x-[20px]" : "translate-x-[4px]")
+          }
+        />
+      </button>
+    );
   }
 
   return (
@@ -111,21 +165,35 @@ export default function NotificationsContent({
 
       <aside className="lg:col-span-1">
         <section className="rounded-[12px] bg-[#16161E] border border-[#2D2A3F] p-5">
-          <h3 className="text-[14px] font-semibold">Notification preferences</h3>
+          <h3 className="text-[16px] font-semibold">Notification preferences</h3>
           <p className="mt-1 text-[12px] text-[#A1A5AF]">Unread: {unreadCount}</p>
 
-          <div className="mt-5 grid gap-3">
+          <div className="mt-6 grid gap-3">
             <div className="flex items-center justify-between">
-              <p className="text-[13px] text-white/90">Rates Update</p>
-              <div className="h-[18px] w-[34px] rounded-full bg-[#3B82F6]" />
+              <p className="text-[14px] text-white">Rates Update</p>
+              <Toggle
+                checked={prefs.notify_rate}
+                onCheckedChange={(next) => {
+                  setPrefs((p) => ({ ...p, notify_rate: next }));
+                  persistPrefs({ notify_rate: next });
+                }}
+                label="Rates Update"
+              />
             </div>
             <div className="flex items-center justify-between">
-              <p className="text-[13px] text-white/90">Security alert</p>
-              <div className="h-[18px] w-[34px] rounded-full bg-[#2D2A3F]" />
+              <p className="text-[14px] text-white">Security alert</p>
+              <Toggle checked={false} onCheckedChange={() => {}} label="Security alert" />
             </div>
             <div className="flex items-center justify-between">
-              <p className="text-[13px] text-white/90">Transactions</p>
-              <div className="h-[18px] w-[34px] rounded-full bg-[#3B82F6]" />
+              <p className="text-[14px] text-white">Transactions</p>
+              <Toggle
+                checked={prefs.notify_transactions}
+                onCheckedChange={(next) => {
+                  setPrefs((p) => ({ ...p, notify_transactions: next }));
+                  persistPrefs({ notify_transactions: next });
+                }}
+                label="Transactions"
+              />
             </div>
           </div>
         </section>

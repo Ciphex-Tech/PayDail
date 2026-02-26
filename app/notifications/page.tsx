@@ -15,6 +15,11 @@ type NotificationRow = {
   created_at: string;
 };
 
+type NotificationPrefs = {
+  notify_rate: boolean;
+  notify_transactions: boolean;
+};
+
 export default async function NotificationsPage() {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
@@ -40,6 +45,17 @@ export default async function NotificationsPage() {
   const email = user.email || "";
   const isAdmin = isAdminEmail(email);
 
+  const { data: prefsRow } = await supabase
+    .from("users_info")
+    .select("notify_rate, notify_transactions")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const initialPrefs: NotificationPrefs = {
+    notify_rate: Boolean((prefsRow as any)?.notify_rate ?? true),
+    notify_transactions: Boolean((prefsRow as any)?.notify_transactions ?? true),
+  };
+
   const { data: rows } = await supabase
     .from("notifications")
     .select("id, title, message, notification_type, read, status, created_at")
@@ -56,7 +72,10 @@ export default async function NotificationsPage() {
           <PageHeader title="Notifications" fullName={fullName} email={email} />
 
           <div className="flex-1 overflow-y-auto px-6 py-6">
-            <NotificationsContent initialNotifications={((rows as NotificationRow[]) || [])} />
+            <NotificationsContent
+              initialNotifications={((rows as NotificationRow[]) || [])}
+              initialPrefs={initialPrefs}
+            />
           </div>
         </main>
       </div>

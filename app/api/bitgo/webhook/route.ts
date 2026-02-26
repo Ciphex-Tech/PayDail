@@ -351,7 +351,7 @@ export async function POST(req: Request) {
 
       const { data: userInfo, error: userErr } = await supabase
         .from("users_info")
-        .select("id, usdt_deposit_address_trc20, btc_deposit_address, eth_deposit_address, bnb_deposit_address_bep20")
+        .select("id, notify_transactions, usdt_deposit_address_trc20, btc_deposit_address, eth_deposit_address, bnb_deposit_address_bep20")
         .or(
           `usdt_deposit_address_trc20.eq.${address},btc_deposit_address.eq.${address},eth_deposit_address.eq.${address},bnb_deposit_address_bep20.eq.${address}`,
         )
@@ -493,7 +493,7 @@ export async function POST(req: Request) {
 
         const prevStatus = String((existingDeposit as any)?.status ?? "").toLowerCase();
         const nextStatus = String(status ?? "").toLowerCase();
-        if (prevStatus && nextStatus && prevStatus !== nextStatus) {
+        if (Boolean((userInfo as any)?.notify_transactions ?? true) && prevStatus && nextStatus && prevStatus !== nextStatus) {
           const coinLabel = (payload.coin || asset).toUpperCase();
           const amountLabel = Number.isFinite(payload.amount) ? payload.amount : 0;
           const title =
@@ -536,7 +536,7 @@ export async function POST(req: Request) {
           continue;
         }
 
-        {
+        if (Boolean((userInfo as any)?.notify_transactions ?? true)) {
           const coinLabel = (payload.coin || asset).toUpperCase();
           const amountLabel = Number.isFinite(payload.amount) ? payload.amount : 0;
           const nextStatus = String(status ?? "").toLowerCase();
