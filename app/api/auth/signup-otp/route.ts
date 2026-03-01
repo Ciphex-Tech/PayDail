@@ -4,50 +4,6 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { assertIsNonEmptyString } from "@/lib/validators/auth";
 
-function getAllowedOrigin(req: Request) {
-  const origin = req.headers.get("origin");
-  if (!origin) return null;
-
-  try {
-    const url = new URL(origin);
-    const host = url.hostname.toLowerCase();
-    const allowedHosts = new Set([
-      "paydail.com",
-      "www.paydail.com",
-      "paydail.vercel.app",
-      "app.paydail.com",
-      "localhost",
-      "127.0.0.1",
-    ]);
-
-    return allowedHosts.has(host) ? origin : null;
-  } catch {
-    return null;
-  }
-}
-
-function withCors(req: Request, res: NextResponse) {
-  const allowed = getAllowedOrigin(req);
-  if (allowed) {
-    res.headers.set("Access-Control-Allow-Origin", allowed);
-    res.headers.set("Vary", "Origin");
-    res.headers.set("Access-Control-Allow-Credentials", "true");
-  }
-  res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-
-  const requestedHeaders = req.headers.get("access-control-request-headers");
-  res.headers.set(
-    "Access-Control-Allow-Headers",
-    requestedHeaders || "Content-Type, Authorization",
-  );
-  res.headers.set("Access-Control-Max-Age", "86400");
-  return res;
-}
-
-export async function OPTIONS(req: Request) {
-  return withCors(req, new NextResponse(null, { status: 204 }));
-}
-
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Record<string, unknown>;
@@ -98,16 +54,13 @@ export async function POST(req: Request) {
       }
 
       if (foundConfirmed) {
-        return withCors(
-          req,
-          NextResponse.json(
-            {
-              ok: false,
-              code: "USER_ALREADY_REGISTERED",
-              error: "user already registered",
-            },
-            { status: 409 },
-          ),
+        return NextResponse.json(
+          {
+            ok: false,
+            code: "USER_ALREADY_REGISTERED",
+            error: "user already registered",
+          },
+          { status: 409 },
         );
       }
     } catch (e) {
@@ -138,13 +91,13 @@ export async function POST(req: Request) {
       });
       const status =
         error.status === 429 || /rate limit/i.test(error.message) ? 429 : 400;
-      return withCors(req, NextResponse.json({ ok: false, error: error.message }, { status }));
+      return NextResponse.json({ ok: false, error: error.message }, { status });
     }
 
-    return withCors(req, NextResponse.json({ ok: true }));
+    return NextResponse.json({ ok: true });
   } catch (e) {
     const message = e instanceof Error ? e.message : "unknown error";
     console.error("/api/auth/signup-otp unhandled error", e);
-    return withCors(req, NextResponse.json({ ok: false, error: message }, { status: 400 }));
+    return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }
