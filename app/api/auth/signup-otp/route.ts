@@ -4,17 +4,26 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { assertIsNonEmptyString } from "@/lib/validators/auth";
 
-const ALLOWED_ORIGINS = new Set([
-  "https://paydail.com",
-  "https://www.paydail.com",
-  "https://paydail.vercel.app",
-  "https://app.paydail.com",
-]);
-
 function getAllowedOrigin(req: Request) {
   const origin = req.headers.get("origin");
   if (!origin) return null;
-  return ALLOWED_ORIGINS.has(origin) ? origin : null;
+
+  try {
+    const url = new URL(origin);
+    const host = url.hostname.toLowerCase();
+    const allowedHosts = new Set([
+      "paydail.com",
+      "www.paydail.com",
+      "paydail.vercel.app",
+      "app.paydail.com",
+      "localhost",
+      "127.0.0.1",
+    ]);
+
+    return allowedHosts.has(host) ? origin : null;
+  } catch {
+    return null;
+  }
 }
 
 function withCors(req: Request, res: NextResponse) {
@@ -25,6 +34,7 @@ function withCors(req: Request, res: NextResponse) {
   }
   res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.headers.set("Access-Control-Max-Age", "86400");
   return res;
 }
 
