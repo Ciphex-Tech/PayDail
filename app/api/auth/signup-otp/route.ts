@@ -31,9 +31,15 @@ function withCors(req: Request, res: NextResponse) {
   if (allowed) {
     res.headers.set("Access-Control-Allow-Origin", allowed);
     res.headers.set("Vary", "Origin");
+    res.headers.set("Access-Control-Allow-Credentials", "true");
   }
   res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  const requestedHeaders = req.headers.get("access-control-request-headers");
+  res.headers.set(
+    "Access-Control-Allow-Headers",
+    requestedHeaders || "Content-Type, Authorization",
+  );
   res.headers.set("Access-Control-Max-Age", "86400");
   return res;
 }
