@@ -39,7 +39,7 @@ export default function TotalBalanceCard({
           </div>
 
           <p className="mt-2 text-[32px] font-bold">
-            {visible ? formattedBalance : "₦ ••••••••"}
+            {visible ? formattedBalance : "₦ ••••"}
           </p>
           <p className="mt-2 text-[10px] text-white font-medium">{lastUpdatedLabel}</p>
         </div>

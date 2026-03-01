@@ -48,5 +48,9 @@ export function assertPasswordReset(value: unknown) {
     throw new Error("password must include a number");
   }
 
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    throw new Error("password must include a symbol");
+  }
+
   return password;
 }

@@ -10,7 +10,18 @@ function validatePassword(pw: string) {
   if (!/[a-z]/.test(pw)) return "Password must contain a lowercase letter.";
   if (!/[A-Z]/.test(pw)) return "Password must contain an uppercase letter.";
   if (!/\d/.test(pw)) return "Password must contain a number.";
+  if (!/[^A-Za-z0-9]/.test(pw)) return "Password must contain a symbol.";
   return null;
+}
+
+function passwordRuleState(pw: string) {
+  return {
+    minLength: pw.length >= 8,
+    lowercase: /[a-z]/.test(pw),
+    uppercase: /[A-Z]/.test(pw),
+    number: /\d/.test(pw),
+    symbol: /[^A-Za-z0-9]/.test(pw),
+  };
 }
 
 export default function ForgotPasswordResetPage() {
@@ -27,15 +38,22 @@ export default function ForgotPasswordResetPage() {
     "Couldn't process the request",
   );
 
+  const rules = useMemo(() => passwordRuleState(password), [password]);
+  const passwordValid = useMemo(() => {
+    return Boolean(
+      rules.minLength && rules.lowercase && rules.uppercase && rules.number && rules.symbol,
+    );
+  }, [rules.lowercase, rules.minLength, rules.number, rules.symbol, rules.uppercase]);
+
   const canContinue = useMemo(() => {
     return Boolean(
       password &&
         confirmPassword &&
         password === confirmPassword &&
-        !validatePassword(password) &&
+        passwordValid &&
         !loading,
     );
-  }, [confirmPassword, loading, password]);
+  }, [confirmPassword, loading, password, passwordValid]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -166,6 +184,30 @@ export default function ForgotPasswordResetPage() {
                 </div>
               </label>
 
+              <div className="mt-3 rounded-[12px] border border-white/10 bg-white/[0.04] px-4 py-3">
+                <p className="text-[14px] font-medium text-white/80">Password must contain:</p>
+                <div className="mt-2 flex flex-wrap gap-1 text-[14px]">
+                  <p className={rules.minLength ? "text-[#22C55E]" : "text-white/60"}>
+                    8 characters minimum,
+                  </p>
+                  <p className={rules.lowercase ? "text-[#22C55E]" : "text-white/60"}>
+                    One lowercase letter,
+                  </p>
+                  <p className={rules.uppercase ? "text-[#22C55E]" : "text-white/60"}>
+                    One uppercase letter,
+                  </p>
+                  <p className={rules.number ? "text-[#22C55E]" : "text-white/60"}>
+                    One number,
+                  </p>
+                  <p className={rules.symbol ? "text-[#22C55E]" : "text-white/60"}>
+                    One symbol,
+                  </p>
+                </div>
+                <p className={password && passwordValid ? "mt-2 text-[12px] text-[#22C55E]" : "mt-2 text-[12px] text-white/40"}>
+                  {password && passwordValid ? "Valid password" : ""}
+                </p>
+              </div>
+
               <label className="mt-[24px] block">
                 <span className="text-[16px] font-medium text-white">
                   Confirm password
@@ -195,6 +237,10 @@ export default function ForgotPasswordResetPage() {
                   </button>
                 </div>
               </label>
+
+              {confirmPassword && password !== confirmPassword ? (
+                <p className="mt-2 text-[12px] text-[#FF4D4D]">Passwords do not match</p>
+              ) : null}
 
               <button
                 type="submit"

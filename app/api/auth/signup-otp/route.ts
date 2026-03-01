@@ -4,6 +4,34 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { assertIsNonEmptyString } from "@/lib/validators/auth";
 
+const ALLOWED_ORIGINS = new Set([
+  "https://paydail.com",
+  "https://www.paydail.com",
+  "https://paydail.vercel.app",
+  "https://app.paydail.com",
+]);
+
+function getAllowedOrigin(req: Request) {
+  const origin = req.headers.get("origin");
+  if (!origin) return null;
+  return ALLOWED_ORIGINS.has(origin) ? origin : null;
+}
+
+function withCors(req: Request, res: NextResponse) {
+  const allowed = getAllowedOrigin(req);
+  if (allowed) {
+    res.headers.set("Access-Control-Allow-Origin", allowed);
+    res.headers.set("Vary", "Origin");
+  }
+  res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  return res;
+}
+
+export async function OPTIONS(req: Request) {
+  return withCors(req, new NextResponse(null, { status: 204 }));
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Record<string, unknown>;
@@ -54,13 +82,16 @@ export async function POST(req: Request) {
       }
 
       if (foundConfirmed) {
-        return NextResponse.json(
-          {
-            ok: false,
-            code: "USER_ALREADY_REGISTERED",
-            error: "user already registered",
-          },
-          { status: 409 },
+        return withCors(
+          req,
+          NextResponse.json(
+            {
+              ok: false,
+              code: "USER_ALREADY_REGISTERED",
+              error: "user already registered",
+            },
+            { status: 409 },
+          ),
         );
       }
     } catch (e) {
@@ -91,13 +122,13 @@ export async function POST(req: Request) {
       });
       const status =
         error.status === 429 || /rate limit/i.test(error.message) ? 429 : 400;
-      return NextResponse.json({ ok: false, error: error.message }, { status });
+      return withCors(req, NextResponse.json({ ok: false, error: error.message }, { status }));
     }
 
-    return NextResponse.json({ ok: true });
+    return withCors(req, NextResponse.json({ ok: true }));
   } catch (e) {
     const message = e instanceof Error ? e.message : "unknown error";
     console.error("/api/auth/signup-otp unhandled error", e);
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return withCors(req, NextResponse.json({ ok: false, error: message }, { status: 400 }));
   }
 }

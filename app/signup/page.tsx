@@ -227,7 +227,7 @@ export default function SignUpPage() {
       if (!res.ok || !json.ok) {
         console.error("signup-otp failed", { status: res.status, raw });
         if (res.status === 409 && (json as any)?.code === "USER_ALREADY_REGISTERED") {
-          setErrorToastMessage("User already registered, try logging in instead");
+          setErrorToastMessage("An account with this email may already exist. Try signing in or resetting your password.");
         }
         if (res.status === 429) {
           setCooldownUntil(Date.now() + 60_000);

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import ContactCard from "../_components/ContactCard";
 
 type NotificationRow = {
   id: string;
@@ -182,7 +183,7 @@ export default function NotificationsContent({
             </div>
             <div className="flex items-center justify-between">
               <p className="text-[14px] text-white">Security alert</p>
-              <Toggle checked={false} onCheckedChange={() => {}} label="Security alert" />
+              <Toggle checked={false} onCheckedChange={() => { }} label="Security alert" />
             </div>
             <div className="flex items-center justify-between">
               <p className="text-[14px] text-white">Transactions</p>
@@ -197,17 +198,7 @@ export default function NotificationsContent({
             </div>
           </div>
         </section>
-
-        <section className="mt-6 rounded-[12px] bg-[#16161E] border border-[#2D2A3F] p-5">
-          <h3 className="text-[14px] font-semibold">Need help ?</h3>
-          <p className="mt-1 text-[12px] text-[#A1A5AF]">Our support team is available to assist you 24/7</p>
-          <button
-            type="button"
-            className="mt-4 w-full rounded-[10px] bg-[#3B82F6] px-4 py-3 text-[13px] font-semibold"
-          >
-            Contact Support
-          </button>
-        </section>
+              <ContactCard />
       </aside>
     </div>
   );

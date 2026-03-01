@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import TopToast from "@/app/_components/TopToast";
 import RefreshButton from "@/app/_components/RefreshButton";
 
@@ -228,7 +228,11 @@ export default function RatesContent({ initialMarkets, initialUpdatedAtIso, init
                 <p className="mt-1 text-[12px] text-white">per 1$</p>
               </div>
 
-              <button type="button" className="mt-6 w-full rounded-[10px] bg-[#3B82F6] py-2 text-[12px] font-medium">
+              <button
+                type="button"
+                onClick={() => router.push(`/wallet?asset=${encodeURIComponent(String(c.sym).toUpperCase())}`)}
+                className="mt-6 w-full rounded-[10px] bg-[#3B82F6] py-2 text-[12px] font-medium"
+              >
                 Deposit Now
               </button>
             </div>
