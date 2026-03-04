@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import axios from "axios";
+
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type Asset = "USDT" | "BTC" | "ETH" | "BNB";
@@ -57,11 +60,42 @@ export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
 
-  if (error || !data?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let userId: string | null = data?.user?.id ?? null;
+
+  if (error || !userId) {
+    const authHeader = req.headers.get("authorization") || "";
+    const token = authHeader.toLowerCase().startsWith("bearer ")
+      ? authHeader.slice("bearer ".length).trim()
+      : "";
+
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const tokenClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
+      },
+    );
+
+    const { data: tokenData, error: tokenError } = await tokenClient.auth.getUser();
+    if (tokenError || !tokenData?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    userId = tokenData.user.id;
   }
 
-  const userId = data.user.id;
+  const admin = createSupabaseAdminClient();
 
   let body: unknown;
   try {
@@ -82,7 +116,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unsupported asset/network" }, { status: 400 });
   }
 
-  const { data: existing, error: existingErr } = await supabase
+  const { data: existing, error: existingErr } = await admin
     .from("users_info")
     .select(`id, ${column}`)
     .eq("id", userId)
@@ -121,7 +155,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "BitGo did not return an address" }, { status: 502 });
     }
 
-    const { error: upsertErr } = await supabase
+    const { error: upsertErr } = await admin
       .from("users_info")
       .upsert({ id: userId, [column]: address }, { onConflict: "id" });
 
