@@ -45,10 +45,10 @@ export default async function RatesPage() {
     .maybeSingle();
 
   const nairaPerUsdBySymbol: Record<string, number> = {
-    USDT: Number(ratesRow?.usdt_rate ?? 1650),
-    BTC: Number(ratesRow?.btc_rate ?? 1640),
-    ETH: Number(ratesRow?.eth_rate ?? 1640),
-    BNB: Number(ratesRow?.bnb_rate ?? 1610),
+    USDT: Number(ratesRow?.usdt_rate),
+    BTC: Number(ratesRow?.btc_rate),
+    ETH: Number(ratesRow?.eth_rate),
+    BNB: Number(ratesRow?.bnb_rate),
   };
 
   type Market = {
