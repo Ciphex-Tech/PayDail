@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const COIN_IDS = {
@@ -57,11 +60,57 @@ async function fetchMarkets(): Promise<Record<string, Market>> {
   return out;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const markets = await fetchMarkets();
+
     const supabase = await createSupabaseServerClient();
-    const { data: ratesRow } = await supabase
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    let authedUserId: string | null = user?.id ?? null;
+
+    if (!authedUserId) {
+      const authHeader = req.headers.get("authorization") || "";
+      const token = authHeader.toLowerCase().startsWith("bearer ")
+        ? authHeader.slice("bearer ".length).trim()
+        : "";
+
+      if (token) {
+        const tokenClient = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            global: {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+            auth: {
+              persistSession: false,
+              autoRefreshToken: false,
+              detectSessionInUrl: false,
+            },
+          },
+        );
+
+        const { data, error } = await tokenClient.auth.getUser();
+        if (!error && data?.user?.id) {
+          authedUserId = data.user.id;
+        }
+      }
+    }
+
+    if (!authedUserId) {
+      return NextResponse.json(
+        { ok: false, error: "not authenticated" },
+        { status: 401 },
+      );
+    }
+
+    const admin = createSupabaseAdminClient();
+    const { data: ratesRow } = await admin
       .from("admin_rates")
       .select("usdt_rate, btc_rate, eth_rate, bnb_rate")
       .order("created_at", { ascending: true })
@@ -69,10 +118,10 @@ export async function GET() {
       .maybeSingle();
 
     const nairaRates: Record<string, number> = {
-      USDT: Number(ratesRow?.usdt_rate),
-      BTC: Number(ratesRow?.btc_rate),
-      ETH: Number(ratesRow?.eth_rate),
-      BNB: Number(ratesRow?.bnb_rate),
+      USDT: Number(ratesRow?.usdt_rate ?? 0),
+      BTC: Number(ratesRow?.btc_rate ?? 0),
+      ETH: Number(ratesRow?.eth_rate ?? 0),
+      BNB: Number(ratesRow?.bnb_rate ?? 0),
     };
 
     return NextResponse.json({ markets, updatedAt: new Date().toISOString(), nairaRates });
