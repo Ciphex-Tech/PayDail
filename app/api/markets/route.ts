@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const COIN_IDS = {
   BTC: "bitcoin",
@@ -60,19 +60,30 @@ async function fetchMarkets(): Promise<Record<string, Market>> {
 export async function GET() {
   try {
     const markets = await fetchMarkets();
-    const supabase = await createSupabaseServerClient();
-    const { data: ratesRow } = await supabase
+    const admin = createSupabaseAdminClient();
+    const { data: ratesRow, error: ratesError } = await admin
       .from("admin_rates")
       .select("usdt_rate, btc_rate, eth_rate, bnb_rate")
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
 
+    if (ratesError) {
+      console.error("/api/markets admin_rates select error", {
+        message: ratesError.message,
+      });
+    }
+
+    const usdt = Number(ratesRow?.usdt_rate);
+    const btc = Number(ratesRow?.btc_rate);
+    const eth = Number(ratesRow?.eth_rate);
+    const bnb = Number(ratesRow?.bnb_rate);
+
     const nairaRates: Record<string, number> = {
-      USDT: Number(ratesRow?.usdt_rate),
-      BTC: Number(ratesRow?.btc_rate),
-      ETH: Number(ratesRow?.eth_rate),
-      BNB: Number(ratesRow?.bnb_rate),
+      USDT: Number.isFinite(usdt) && usdt > 0 ? usdt : 1650,
+      BTC: Number.isFinite(btc) && btc > 0 ? btc : 1650,
+      ETH: Number.isFinite(eth) && eth > 0 ? eth : 1650,
+      BNB: Number.isFinite(bnb) && bnb > 0 ? bnb : 1650,
     };
 
     return NextResponse.json({ markets, updatedAt: new Date().toISOString(), nairaRates });
