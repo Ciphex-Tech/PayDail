@@ -64,6 +64,26 @@ export async function POST(req: Request) {
         continue;
       }
 
+      const isTestMode = (process.env.PAYSTACK_SECRET_KEY ?? "").startsWith("sk_test_");
+      const isUnverified = String(w.account_name ?? "").includes("Unverified");
+
+      if (isTestMode && isUnverified) {
+        const fakeTransferCode = `TEST_TRANSFER_${w.reference}`;
+        await admin
+          .from("withdrawals")
+          .update({
+            recipient_code: `TEST_RECIPIENT_${w.account_number}`,
+            paystack_transfer_code: fakeTransferCode,
+            paystack_response: { simulated: true, reference: w.reference },
+            status: "processing",
+          })
+          .eq("id", w.id);
+
+        processed++;
+        await sleep(TRANSFER_DELAY_MS);
+        continue;
+      }
+
       let recipientCode = (w.recipient_code as string | null) ?? null;
 
       if (!recipientCode) {
