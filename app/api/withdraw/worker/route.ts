@@ -1,3 +1,5 @@
+import { createHmac } from "crypto";
+
 import { NextResponse } from "next/server";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -8,6 +10,39 @@ const TRANSFER_DELAY_MS = 500;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function simulateTestWebhook(reference: string, amount: number) {
+  const baseUrl = process.env.BASE_URL ?? "";
+  const secretKey = process.env.PAYSTACK_SECRET_KEY ?? "";
+  if (!baseUrl || !secretKey) return;
+
+  const isSuccess = Math.random() > 0.3;
+  const event = isSuccess ? "transfer.success" : "transfer.failed";
+
+  const payload = JSON.stringify({
+    event,
+    data: {
+      reference,
+      status: isSuccess ? "success" : "failed",
+      reason: isSuccess ? undefined : "Simulated test transfer failure",
+      amount: Math.round(amount * 100),
+      currency: "NGN",
+    },
+  });
+
+  const signature = createHmac("sha512", secretKey).update(payload).digest("hex");
+
+  await fetch(`${baseUrl}/api/paystack/webhook`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-paystack-signature": signature,
+    },
+    body: payload,
+  }).catch((e) => console.error("[worker] simulate webhook error", e?.message));
+
+  console.info("[worker] simulated webhook", { reference, event });
 }
 
 function isAuthorized(req: Request): boolean {
@@ -80,6 +115,9 @@ export async function POST(req: Request) {
           .eq("id", w.id);
 
         processed++;
+
+        await sleep(1500);
+        await simulateTestWebhook(w.reference, Number(w.amount));
         await sleep(TRANSFER_DELAY_MS);
         continue;
       }
