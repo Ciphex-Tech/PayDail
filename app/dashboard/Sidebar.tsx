@@ -6,7 +6,7 @@ export default function Sidebar({
   active,
   isAdmin,
 }: {
-  active: "dashboard" | "rates" | "wallet" | "notifications" | "registrations";
+  active: "dashboard" | "rates" | "wallet" | "withdraw" | "notifications" | "registrations";
   isAdmin?: boolean;
 }) {
   const activeClass =
@@ -61,15 +61,15 @@ export default function Sidebar({
             <span>Wallet</span>
           </Link>
 
-          <Link href="#" className={inactiveClass}>
+          <Link href="/withdraw" className={active === "withdraw" ? activeClass : inactiveClass}>
             <Image
               src="/images/transactions_icon.svg"
               alt=""
               width={18}
               height={18}
-              className={inactiveIconClass}
+              className={active === "withdraw" ? activeIconClass : inactiveIconClass}
             />
-            <span>Transactions</span>
+            <span>Withdraw</span>
           </Link>
 
           {isAdmin ? (

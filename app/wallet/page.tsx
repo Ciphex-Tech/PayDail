@@ -3,7 +3,6 @@ import Sidebar from "@/app/dashboard/Sidebar";
 import PageHeader from "@/app/dashboard/PageHeader";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import WalletContent from "@/app/wallet/WalletContent";
-import { isAdminEmail } from "@/lib/security/isAdminEmail";
 
 type DepositRow = {
   id: string;
@@ -41,7 +40,6 @@ export default async function WalletPage() {
 
   const fullName = fullNameFromMeta || combined || user.email || "there";
   const email = user.email || "";
-  const isAdmin = isAdminEmail(email);
 
   const { data: info } = await supabase
     .from("users_info")
@@ -61,7 +59,7 @@ export default async function WalletPage() {
   return (
     <div className="min-h-screen w-full bg-[#0B0A0F] text-white">
       <div className="flex min-h-screen">
-        <Sidebar active="wallet" isAdmin={isAdmin} />
+        <Sidebar active="wallet" />
 
         <main className="flex-1 flex h-screen flex-col overflow-hidden">
           <PageHeader title="Wallet" fullName={fullName} email={email} />

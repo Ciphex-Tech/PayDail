@@ -3,7 +3,6 @@ import Sidebar from "@/app/dashboard/Sidebar";
 import PageHeader from "@/app/dashboard/PageHeader";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import NotificationsContent from "@/app/notifications/NotificationsContent";
-import { isAdminEmail } from "@/lib/security/isAdminEmail";
 
 type NotificationRow = {
   id: string;
@@ -43,7 +42,6 @@ export default async function NotificationsPage() {
 
   const fullName = fullNameFromMeta || combined || user.email || "there";
   const email = user.email || "";
-  const isAdmin = isAdminEmail(email);
 
   const { data: prefsRow } = await supabase
     .from("users_info")
@@ -66,7 +64,7 @@ export default async function NotificationsPage() {
   return (
     <div className="min-h-screen w-full bg-[#0B0A0F] text-white">
       <div className="flex min-h-screen">
-        <Sidebar active="notifications" isAdmin={isAdmin} />
+        <Sidebar active="notifications"/>
 
         <main className="flex-1 flex h-screen flex-col overflow-hidden">
           <PageHeader title="Notifications" fullName={fullName} email={email} />

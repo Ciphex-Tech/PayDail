@@ -5,7 +5,6 @@ import TotalBalanceCard from "@/app/dashboard/TotalBalanceCard";
 import CopyableAddress from "@/app/dashboard/CopyableAddress";
 import Sidebar from "@/app/dashboard/Sidebar";
 import PageHeader from "@/app/dashboard/PageHeader";
-import { isAdminEmail } from "@/lib/security/isAdminEmail";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -33,7 +32,6 @@ export default async function DashboardPage() {
   const fullName = fullNameFromMeta || combined || user.email || "there";
 
   const email = user.email || "";
-  const isAdmin = isAdminEmail(email);
 
   const { data: info } = await supabase
     .from("users_info")
@@ -70,7 +68,7 @@ export default async function DashboardPage() {
       <LoginSuccessToast />
 
       <div className="flex min-h-screen">
-        <Sidebar active="dashboard" isAdmin={isAdmin} />
+        <Sidebar active="dashboard" />
 
         <main className="flex-1 flex h-screen flex-col overflow-hidden">
           <PageHeader title="Dashboard" fullName={fullName} email={email} />

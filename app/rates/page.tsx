@@ -3,7 +3,6 @@ import Sidebar from "@/app/dashboard/Sidebar";
 import PageHeader from "@/app/dashboard/PageHeader";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import RatesContent from "@/app/rates/RatesContent";
-import { isAdminEmail } from "@/lib/security/isAdminEmail";
 
 export default async function RatesPage() {
   const supabase = await createSupabaseServerClient();
@@ -28,7 +27,6 @@ export default async function RatesPage() {
 
   const fullName = fullNameFromMeta || combined || user.email || "there";
   const email = user.email || "";
-  const isAdmin = isAdminEmail(email);
 
   const COIN_IDS = {
     BTC: "bitcoin",
@@ -102,7 +100,7 @@ export default async function RatesPage() {
   return (
     <div className="min-h-screen w-full bg-[#0B0A0F] text-white">
       <div className="flex min-h-screen">
-        <Sidebar active="rates" isAdmin={isAdmin} />
+        <Sidebar active="rates" />
 
         <main className="flex-1 flex h-screen flex-col overflow-hidden">
           <PageHeader title="Rates" fullName={fullName} email={email} />
