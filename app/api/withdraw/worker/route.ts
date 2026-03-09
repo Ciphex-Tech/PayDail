@@ -3,7 +3,12 @@ import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createTransferRecipient, initiateTransfer } from "@/lib/paystack/client";
 
-const BATCH_SIZE = 20;
+const BATCH_SIZE = 10;
+const TRANSFER_DELAY_MS = 500;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function isAuthorized(req: Request): boolean {
   const cronSecret = process.env.CRON_SECRET;
@@ -89,6 +94,8 @@ export async function POST(req: Request) {
         .eq("id", w.id);
 
       processed++;
+
+      await sleep(TRANSFER_DELAY_MS);
     } catch (e: any) {
       console.error("[withdraw/worker] error", {
         id: w.id,
