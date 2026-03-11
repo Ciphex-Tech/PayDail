@@ -62,7 +62,7 @@ export default async function WalletPage() {
         <Sidebar active="wallet" />
 
         <main className="flex-1 flex h-screen flex-col overflow-hidden">
-          <PageHeader title="Wallet" fullName={fullName} email={email} />
+          <PageHeader title="Deposit" fullName={fullName} email={email} />
 
           <div className="flex-1 overflow-y-auto">
             <WalletContent initialAddresses={info || {}} initialDeposits={(deposits as DepositRow[]) || []} />
