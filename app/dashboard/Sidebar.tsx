@@ -4,10 +4,8 @@ import LogoutButton from "@/app/dashboard/LogoutButton";
 
 export default function Sidebar({
   active,
-  isAdmin,
 }: {
-  active: "none" | "dashboard" | "rates" | "cards" | "settings" | "registrations";
-  isAdmin?: boolean;
+  active: "none" | "dashboard" | "rates" | "cards" | "settings" | "withdraw";
 }) {
   const activeClass =
     "flex items-center gap-3 rounded-[10px] px-[24px] py-[18px] text-[16px] font-medium text-white bg-[#3B82F6]";
@@ -64,21 +62,7 @@ export default function Sidebar({
             <span>Cards</span>
           </Link>
 
-          {isAdmin ? (
-            <Link
-              href="/admin/registrations"
-              className={active === "registrations" ? activeClass : inactiveClass}
-            >
-              <Image
-                src="/images/transactions_icon.svg"
-                alt=""
-                width={18}
-                height={18}
-                className={active === "registrations" ? activeIconClass : inactiveIconClass}
-              />
-              <span>Registrations</span>
-            </Link>
-          ) : null}
+          
 
           <Link href="#" className={active === "settings" ? activeClass : inactiveClass}>
             <Image
