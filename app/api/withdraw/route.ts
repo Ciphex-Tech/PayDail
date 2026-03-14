@@ -6,7 +6,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const MIN_WITHDRAWAL = 1_000;
 const REVIEW_THRESHOLD = 100_000;
-const MAX_PER_DAY = 3;
 
 export async function POST(req: Request) {
   try {
@@ -68,36 +67,6 @@ export async function POST(req: Request) {
 
     if (!/^\d{10}$/.test(accountNumber)) {
       return NextResponse.json({ error: "Account number must be 10 digits" }, { status: 400 });
-    }
-
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { count: todayCount } = await admin
-      .from("withdrawals")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .gte("created_at", since)
-      .not("status", "eq", "failed");
-
-    if ((todayCount ?? 0) >= MAX_PER_DAY) {
-      return NextResponse.json(
-        { error: `Maximum ${MAX_PER_DAY} withdrawals allowed per 24 hours` },
-        { status: 429 },
-      );
-    }
-
-    const { data: inProgress } = await admin
-      .from("withdrawals")
-      .select("id, status")
-      .eq("user_id", userId)
-      .in("status", ["pending", "queued", "review_required", "approved", "processing"])
-      .limit(1)
-      .maybeSingle();
-
-    if (inProgress) {
-      return NextResponse.json(
-        { error: "You already have a withdrawal in progress. Wait for it to complete first." },
-        { status: 409 },
-      );
     }
 
     const { data: userInfo, error: balErr } = await admin

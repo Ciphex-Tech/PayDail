@@ -82,51 +82,7 @@ export default function LoginPage() {
       });
       return;
     }
-
-    const t = window.setTimeout(async () => {
-      setEmailValidation({ status: "checking", email: sanitizedEmail });
-      try {
-        const res = await fetch(
-          `/api/validate-email?email=${encodeURIComponent(sanitizedEmail)}`,
-          { method: "GET" },
-        );
-
-        const raw = await res.text();
-        let json: { valid?: boolean; reason?: string } = {};
-        try {
-          json = raw ? (JSON.parse(raw) as { valid?: boolean; reason?: string }) : {};
-        } catch {
-          // ignore non-json
-        }
-
-        if (!res.ok) {
-          setEmailValidation({
-            status: "invalid",
-            email: sanitizedEmail,
-            reason: json.reason || `http_${res.status}`,
-          });
-          return;
-        }
-
-        if (json.valid) {
-          setEmailValidation({ status: "valid", email: sanitizedEmail });
-        } else {
-          setEmailValidation({
-            status: "invalid",
-            email: sanitizedEmail,
-            reason: json.reason,
-          });
-        }
-      } catch {
-        setEmailValidation({
-          status: "invalid",
-          email: sanitizedEmail,
-          reason: "network_error",
-        });
-      }
-    }, 2000);
-
-    return () => window.clearTimeout(t);
+    setEmailValidation({ status: "valid", email: sanitizedEmail });
   }, [emailFormatOk, sanitizedEmail]);
 
   useEffect(() => {
@@ -323,8 +279,6 @@ export default function LoginPage() {
               >
                 {loading
                   ? "Signing in..."
-                  : emailValidation.status === "checking"
-                    ? "Validating..."
                     : "Continue"}
               </button>
 
