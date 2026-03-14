@@ -379,7 +379,7 @@ export default function WalletContent({ initialAddresses, initialDeposits }: Pro
         <section className="rounded-[12px] bg-[#16161E] border border-[#2E2E3A] p-5">
           <h3 className="text-[16px] font-medium">Deposit Instructions</h3>
 
-          <ol className="mt-7 grid gap-4 text-[14px] text-[#fffff] list-decimal pl-4">
+          <ol className="mt-7 grid gap-4 text-[12px] text-[#fffff] list-decimal pl-4">
             <li>Select your preferred cryptocurrency and network</li>
             <li>Generate your deposit address (first time only)</li>
             <li>Send funds to the address from your external wallet</li>
