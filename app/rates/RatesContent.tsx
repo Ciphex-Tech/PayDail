@@ -230,7 +230,7 @@ export default function RatesContent({ initialMarkets, initialUpdatedAtIso, init
 
               <button
                 type="button"
-                onClick={() => router.push(`/wallet?asset=${encodeURIComponent(String(c.sym).toUpperCase())}`)}
+                onClick={() => router.push(`/deposit?asset=${encodeURIComponent(String(c.sym).toUpperCase())}`)}
                 className="mt-6 w-full rounded-[10px] bg-[#3B82F6] py-2 text-[12px] font-medium"
               >
                 Deposit Now
@@ -453,7 +453,7 @@ export default function RatesContent({ initialMarkets, initialUpdatedAtIso, init
                 type="button"
                 onClick={() => {
                   setQuoteOpen(false);
-                  router.push(`/wallet?asset=${encodeURIComponent(calcSymbol)}`);
+                  router.push(`/deposit?asset=${encodeURIComponent(calcSymbol)}`);
                 }}
                 className="mt-6 w-full rounded-[12px] bg-[#3B82F6] py-3 text-[16px] font-medium"
               >

@@ -1,7 +1,3 @@
-"use client";
-
-import { useState } from "react";
-
 import Image from "next/image";
 import Link from "next/link";
 import LogoutButton from "@/app/dashboard/LogoutButton";
@@ -10,12 +6,9 @@ export default function Sidebar({
   active,
   isAdmin,
 }: {
-  active: "dashboard" | "rates" | "wallet" | "withdraw" | "notifications" | "registrations";
+  active: "none" | "dashboard" | "rates" | "transactions" | "settings" | "registrations";
   isAdmin?: boolean;
 }) {
-  const walletOpen = active === "wallet" || active === "withdraw";
-  const [walletExpanded, setWalletExpanded] = useState(walletOpen);
-
   const activeClass =
     "flex items-center gap-3 rounded-[10px] px-[24px] py-[18px] text-[16px] font-medium text-white bg-[#3B82F6]";
 
@@ -24,12 +17,6 @@ export default function Sidebar({
 
   const activeIconClass = "brightness-0 invert";
   const inactiveIconClass = "brightness-0 invert opacity-60";
-
-  const subActiveClass =
-    "flex items-center gap-3 rounded-[10px] pl-[44px] pr-[24px] py-[14px] text-[14px] font-medium text-[#3B82F6]";
-
-  const subInactiveClass =
-    "flex items-center gap-3 rounded-[10px] pl-[44px] pr-[24px] py-[14px] text-[14px] font-medium text-white/50 hover:text-white transition-all duration-300";
 
   return (
     <>
@@ -63,65 +50,16 @@ export default function Sidebar({
             <span>Rates</span>
           </Link>
 
-          <div className="flex flex-col">
-            <button
-              type="button"
-              onClick={() => setWalletExpanded((v) => !v)}
-              className={`${walletOpen ? "bg-[#3B82F6]" : "hover:bg-[#2E2E3A]"} flex items-center gap-3 rounded-[10px] px-[24px] py-[18px] text-[16px] font-medium text-white transition-all duration-300 w-full`}
-            >
-              <Image
-                src="/images/wallet_icon.svg"
-                alt=""
-                width={18}
-                height={18}
-                className={walletExpanded ? activeIconClass : inactiveIconClass}
-              />
-              <span className="flex-1 text-left">Wallet</span>
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 12 12"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className={`transition-transform duration-200 ${walletExpanded ? "rotate-180" : ""}`}
-              >
-                <path
-                  d="M2 4L6 8L10 4"
-                  stroke="white"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-
-            {walletExpanded && (
-              <div className="flex flex-col gap-1 mt-1">
-                <Link
-                  href="/wallet"
-                  className={active === "wallet" ? subActiveClass : subInactiveClass}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
-                  <span>Deposit</span>
-                </Link>
-                <Link
-                  href="/withdraw"
-                  className={active === "withdraw" ? subActiveClass : subInactiveClass}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
-                  <span>Withdraw</span>
-                </Link>
-              </div>
-            )}
-          </div>
-
-          <Link href="/withdraw" className={inactiveClass}>
+          <Link
+            href="/withdraw"
+            className={active === "transactions" ? activeClass : inactiveClass}
+          >
             <Image
               src="/images/transactions_icon.svg"
               alt=""
               width={18}
               height={18}
-              className={inactiveIconClass}
+              className={active === "transactions" ? activeIconClass : inactiveIconClass}
             />
             <span>Transactions</span>
           </Link>
@@ -142,13 +80,13 @@ export default function Sidebar({
             </Link>
           ) : null}
 
-          <Link href="#" className={inactiveClass}>
+          <Link href="#" className={active === "settings" ? activeClass : inactiveClass}>
             <Image
               src="/images/settings_icon.svg"
               alt=""
               width={18}
               height={18}
-              className={inactiveIconClass}
+              className={active === "settings" ? activeIconClass : inactiveIconClass}
             />
             <span>Settings</span>
           </Link>

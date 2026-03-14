@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Sidebar from "@/app/dashboard/Sidebar";
 import PageHeader from "@/app/dashboard/PageHeader";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import WalletContent from "@/app/wallet/WalletContent";
+import WalletContent from "@/app/deposit/WalletContent";
 
 type DepositRow = {
   id: string;
@@ -59,7 +59,7 @@ export default async function WalletPage() {
   return (
     <div className="min-h-screen w-full bg-[#0B0A0F] text-white">
       <div className="flex min-h-screen">
-        <Sidebar active="wallet" />
+        <Sidebar active="none" />
 
         <main className="flex-1 flex h-screen flex-col overflow-hidden">
           <PageHeader title="Deposit" fullName={fullName} email={email} />

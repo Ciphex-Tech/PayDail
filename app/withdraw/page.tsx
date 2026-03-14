@@ -47,7 +47,7 @@ export default async function WithdrawPage() {
   return (
     <div className="min-h-screen w-full bg-[#0B0A0F] text-white">
       <div className="flex min-h-screen">
-        <Sidebar active="withdraw" />
+        <Sidebar active="transactions" />
 
         <main className="flex-1 flex h-screen flex-col overflow-hidden">
           <PageHeader title="Withdraw" fullName={fullName} email={email} />

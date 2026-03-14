@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function TotalBalanceCard({
@@ -12,6 +13,7 @@ export default function TotalBalanceCard({
   percentIncrease: number;
   lastUpdatedLabel: string;
 }) {
+  const router = useRouter();
   const [visible, setVisible] = useState(true);
 
   const formattedBalance = `₦ ${Number.isFinite(nairaBalance) ? nairaBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}`;
@@ -55,6 +57,7 @@ export default function TotalBalanceCard({
       <div className="mt-6 flex gap-[30px]">
         <button
           type="button"
+          onClick={() => router.push("/deposit")}
           className="rounded-[10px] w-[150px] flex items-center justify-center gap-[10px] bg-[#201F2D] px-[30px] py-[13px] text-[13px] font-medium text-white cursor-pointer"
         >
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -65,6 +68,7 @@ export default function TotalBalanceCard({
         </button>
         <button
           type="button"
+          onClick={() => router.push("/withdraw")}
           className="rounded-[10px] w-[150px] flex items-center justify-center gap-[10px] bg-[#201F2D] px-[30px] py-[13px] text-[13px] font-medium text-white cursor-pointer"
         >
           <svg width="10" height="10" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
