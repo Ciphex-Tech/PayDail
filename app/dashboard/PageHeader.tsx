@@ -72,10 +72,10 @@ export default function PageHeader({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between border-b border-[#2E2E3A] px-[36px] py-[15px] bg-[#16161E]">
+    <header className="sticky top-0 z-40 flex items-center justify-between border-b border-[#2E2E3A] px-4 py-2 sm:px-[36px] sm:py-[15px] bg-[#16161E]">
       <div className="flex items-center gap-3">
         <div className="md:hidden">
-          <Image src="/images/logo.svg" alt="PayDail" width={95} height={26} />
+          <Image src="/images/logo.svg" alt="PayDail" width={115} height={26} />
         </div>
         <h1 className="hidden text-[18px] font-medium text-white md:block">{title}</h1>
       </div>
@@ -86,15 +86,15 @@ export default function PageHeader({
           className="relative inline-flex h-[38px] w-[38px] items-center justify-center cursor-pointer"
           aria-label="Notifications"
         >
-          <Image src="/images/notification.svg" alt="" width={25} height={25} />
+          <Image src="/images/notification.svg" alt="" width={25} height={25} className="w-[22px] h-[22px] sm:w-[25px] sm:h-[25px]" />
           {hasUnread ? (
-            <span className="absolute right-[2px] top-[2px] h-[8px] w-[8px] rounded-full bg-[#E11D48]" />
+            <span className="absolute right-[2px] top-[3px] h-[8px] w-[8px] rounded-full bg-[#E11D48]" />
           ) : null}
         </Link>
 
         <div className="flex items-center gap-3 px-3 py-2 cursor-pointer border-l-1 border-[#2E2E3A]">
-          <div className="relative h-[40px] w-[40px] pt-[5px] overflow-hidden rounded-full bg-[#1A2135]">
-            <Image src="/images/user.png" alt="" width={40} height={40} />
+          <div className="relative w-[35px] h-[35px] sm:w-[40px] sm:h-[40px] pt-[5px] overflow-hidden rounded-full bg-[#1A2135]">
+            <Image src="/images/user.png" alt="" width={40} height={40} className="w-[35px] h-[35px] sm:w-[40px] sm:h-[40px]" />
           </div>
           <div className="hidden md:block">
             <p className="text-[14px] font-medium leading-tight">{fullName}</p>

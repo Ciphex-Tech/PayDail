@@ -258,8 +258,8 @@ export default function SignUpPage() {
         message={errorToastMessage}
         onClose={() => setErrorToastOpen(false)}
       />
-      <div className="flex min-h-screen">
-        <aside className="relative hidden w-[47%] overflow-hidden bg-[#1D78FF] md:block">
+      <div className="flex min-h-screen overflow-x-hidden">
+        <aside className="relative hidden w-[47%] overflow-hidden bg-[#1D78FF] lg:block">
           <div className="relative flex h-full flex-col justify-center px-10">
             <h1 className="text-[48px] max-w-[630px] font-bold leading-tight tracking-tight">
               The fastest crypto to Naira conversion
@@ -271,24 +271,24 @@ export default function SignUpPage() {
           </div>
         </aside>
 
-        <main className="relative w-[53%] flex items-center justify-center bg-[#0B0A0F] px-6 py-16">
+        <main className="relative w-[100%] lg:w-[53%] flex items-center justify-center bg-[#0B0A0F] px-6 py-16">
 
-          <div className="relative w-full max-w-[660px] rounded-[12px] border border-[#2E2E3A] bg-[#16161E] pt-[36px] pb-[64px] px-[70px]">
+          <div className="relative w-full max-w-[660px] rounded-[12px] border border-[#2E2E3A] bg-[#16161E] pt-[36px] pb-[32px] px-[20px] sm:pt-[36px] sm:pb-[64px] sm:px-[70px]">
             <div className="flex items-center justify-center gap-2">
-              <Image src="/images/logo.svg" alt="PayDail" width={172} height={45} />
+              <Image src="/images/logo.svg" alt="PayDail" width={172} height={45} className="w-[140px] h-[35px] sm:w-[172px] sm:h-[45px]" />
             </div>
 
-            <div className="mt-[26px] text-center">
-              <h2 className="text-[24px] font-bold">Create your account</h2>
-              <p className="mt-[14px] text-[16px]">
+            <div className="mt-[15px] sm:mt-[26px] text-center">
+              <h2 className="text-[20px] sm:text-[24px] font-bold">Create your account</h2>
+              <p className="mt-[10px] sm:mt-[14px] text-[14px] sm:text-[16px] max-w-[230px] mx-auto sm:max-w-none">
                 Enter your details to create a PayDail account
               </p>
             </div>
 
-            <form className="mt-[36px]" onSubmit={onSubmit}>
-              <div className="grid mb-[30px] grid-cols-1 gap-[20px] sm:grid-cols-2">
+            <form className="mt-[20px] sm:mt-[36px]" onSubmit={onSubmit}>
+              <div className="grid mb-[20px] sm:mb-[30px] grid-cols-1 gap-[20px] sm:grid-cols-2">
                 <label className="space-y-1">
-                  <span className="text-[16px] font-medium text-white">First name</span>
+                  <span className="text-[14px] sm:text-[16px] font-medium text-white">First name</span>
                   <input
                     name="firstName"
                     type="text"
@@ -296,12 +296,12 @@ export default function SignUpPage() {
                     required
                     value={firstName}
                     onChange={(e) => setFirstName(sanitizeLettersOnly(e.target.value))}
-                    className="h-[43px] w-full mt-2 rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
+                    className="h-[38px] sm:h-[43px] w-full mt-2 rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
                   />
                 </label>
 
                 <label className="space-y-1">
-                  <span className="text-[16px] font-medium text-white">Last Name</span>
+                  <span className="text-[14px] sm:text-[16px] font-medium text-white">Last Name</span>
                   <input
                     name="lastName"
                     type="text"
@@ -309,13 +309,13 @@ export default function SignUpPage() {
                     required
                     value={lastName}
                     onChange={(e) => setLastName(sanitizeLettersOnly(e.target.value))}
-                    className="h-[43px] w-full mt-2 rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
+                    className="h-[38px] sm:h-[43px] w-full mt-2 rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
                   />
                 </label>
               </div>
           
               <label className="space-y-1">
-                <span className="text-[16px] font-medium text-white">Email Address</span>
+                <span className="text-[14px] sm:text-[16px] font-medium text-white">Email Address</span>
                 <input
                   name="email"
                   type="email"
@@ -323,12 +323,12 @@ export default function SignUpPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-[43px] w-full mt-2 mb-[30px] rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
+                  className="h-[38px] sm:h-[43px] w-full mt-2 mb-[20px] sm:mb-[30px] rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
                 />
               </label>
 
               <label className="space-y-1">
-                <span className="text-[16px] font-medium text-white">Phone Number</span>
+                <span className="text-[14px] sm:text-[16px] font-medium text-white">Phone Number</span>
                 <input
                   name="phone"
                   type="tel"
@@ -336,14 +336,14 @@ export default function SignUpPage() {
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                  className="h-[43px] w-full mt-2 mb-[20px] rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
+                  className="h-[38px] sm:h-[43px] w-full mt-2 mb-[20px] sm:mb-[20px] rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
                 />
               </label>
 
               <button
                 type="submit"
                 disabled={!canContinue}
-                className="rounded-[12px] py-[12px] px-[72px] cursor-pointer block mx-auto bg-[#1D78FF] text-[16px] font-medium text-white transition hover:bg-[#1A6EF0] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#1E7BFF]/40"
+                className="rounded-[12px] py-[10px] sm:py-[12px] px-[72px] w-full sm:w-[fit-content] cursor-pointer block mx-auto bg-[#1D78FF] text-[14px] sm:text-[16px] font-medium text-white transition hover:bg-[#1A6EF0] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#1E7BFF]/40"
               >
                 {loading
                   ? "Sending..."
@@ -364,7 +364,7 @@ export default function SignUpPage() {
                 </Link>
               </p>
 
-              <p className="text-center mt-[40px] font-medium text-[16px] leading-6 text-white">
+              <p className="text-center mt-[40px] font-medium text-[12px] sm:text-[16px] leading-6 text-white">
                 By clicking on continue you understand that you agree to <span className="text-[#1D78FF] font-extrabold">PayDail&apos;s</span>{" "}
                 <a
                   href="#"

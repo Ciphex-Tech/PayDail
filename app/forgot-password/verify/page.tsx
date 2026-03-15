@@ -144,8 +144,8 @@ export default function ForgotPasswordVerifyPage() {
         message="Couldn't process the request"
         onClose={() => setErrorToastOpen(false)}
       />
-      <div className="flex min-h-screen">
-        <aside className="relative hidden w-[47%] overflow-hidden bg-[#1D78FF] md:block">
+      <div className="flex min-h-screen overflow-x-hidden">
+        <aside className="relative hidden w-[47%] overflow-hidden bg-[#1D78FF] lg:block">
           <div className="relative flex h-full flex-col justify-center px-10">
             <h1 className="text-[48px] max-w-[630px] font-bold leading-tight tracking-tight">
               The fastest crypto to Naira conversion
@@ -157,12 +157,12 @@ export default function ForgotPasswordVerifyPage() {
           </div>
         </aside>
 
-        <main className="relative w-[53%] flex items-center justify-center bg-[#0B0A0F] px-6 py-16">
-          <div className="relative w-full max-w-[660px] rounded-[12px] border border-[#2E2E3A] bg-[#16161E] pt-[36px] pb-[64px] px-[100px]">
+        <main className="relative w-[100%] lg:w-[53%] flex items-center justify-center bg-[#0B0A0F] px-6 py-16">
+          <div className="relative w-full max-w-[660px] rounded-[12px] border border-[#2E2E3A] bg-[#16161E] pt-[36px] pb-[32px] px-[20px] sm:pt-[36px] sm:pb-[64px] sm:px-[70px]">
             <button
               type="button"
               onClick={() => router.push("/forgot-password")}
-              className="absolute top-[24px] left-[24px] inline-flex p-[8px] cursor-pointer rounded-[8px] border-1 border-[#626262] bg-[#2E2E3A] items-center gap-[10px]"
+              className="absolute top-[24px] left-[24px] inline-flex p-[6px] sm:p-[8px] cursor-pointer rounded-[8px] border-1 border-[#626262] bg-[#2E2E3A] items-center gap-[8px] sm:gap-[10px]"
             >
               <svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
@@ -172,16 +172,24 @@ export default function ForgotPasswordVerifyPage() {
                   fill="white"
                 />
               </svg>
-              <span className="text-[16px] font-medium">Back</span>
+              <span className="text-[13px] sm:text-[16px] font-medium">Back</span>
             </button>
 
             <div className="flex items-center justify-center gap-2">
-              <Image src="/images/logo.svg" alt="PayDail" width={172} height={45} />
+              <Image
+                src="/images/logo.svg"
+                alt="PayDail"
+                width={172}
+                height={45}
+                className="w-[140px] h-[35px] sm:w-[172px] sm:h-[45px]"
+              />
             </div>
 
-            <div className="mt-[26px] text-center">
-              <h2 className="text-[24px] font-bold">Forgot Password</h2>
-              <p className="mt-[14px] text-[16px]">Verify email address to proceed</p>
+            <div className="mt-[15px] sm:mt-[26px] text-center">
+              <h2 className="text-[20px] sm:text-[24px] font-bold">Forgot Password</h2>
+              <p className="mt-[10px] sm:mt-[14px] text-[14px] sm:text-[16px] max-w-[260px] mx-auto sm:max-w-none">
+                Verify email address to proceed
+              </p>
               {maskedEmail ? (
                 <p className="mt-[10px] text-[12px] text-white/60">
                   Enter the OTP sent to {maskedEmail}
@@ -189,7 +197,7 @@ export default function ForgotPasswordVerifyPage() {
               ) : null}
             </div>
 
-            <form className="mt-[66px]" onSubmit={verifyCode}>
+            <form className="mt-[20px] sm:mt-[66px]" onSubmit={verifyCode}>
               <div className="flex items-center justify-center gap-2">
                 {otpSlots.map((v, i) => (
                   <input
@@ -202,7 +210,7 @@ export default function ForgotPasswordVerifyPage() {
                     onKeyDown={(e) => onKeyDownSlot(i, e)}
                     onPaste={onPaste}
                     inputMode="numeric"
-                    className="h-[48px] w-[48px] rounded-[8px] border border-white/10 bg-white/[0.06] text-center text-[18px] text-white outline-none focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
+                    className="h-[40px] w-[40px] sm:h-[48px] sm:w-[48px] rounded-[8px] border border-white/10 bg-white/[0.06] text-center text-[16px] sm:text-[18px] text-white outline-none focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
                   />
                 ))}
               </div>
@@ -210,7 +218,7 @@ export default function ForgotPasswordVerifyPage() {
               <button
                 type="submit"
                 disabled={loading || otp.length !== 6}
-                className="mt-[24px] block w-full rounded-[12px] bg-[#1D78FF] py-[12px] text-[16px] font-medium text-white transition hover:bg-[#1A6EF0] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#1E7BFF]/40"
+                className="mt-[24px] block w-full rounded-[12px] bg-[#1D78FF] py-[10px] sm:py-[12px] text-[14px] sm:text-[16px] font-medium text-white transition hover:bg-[#1A6EF0] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#1E7BFF]/40"
               >
                 {loading ? "Verifying..." : "Continue"}
               </button>

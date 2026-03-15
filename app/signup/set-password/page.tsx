@@ -130,8 +130,8 @@ export default function SetPasswordPage() {
         message="Couldn't process the request"
         onClose={() => setErrorToastOpen(false)}
       />
-      <div className="flex min-h-screen">
-        <aside className="relative hidden w-[47%] overflow-hidden bg-[#1D78FF] md:block">
+      <div className="flex min-h-screen overflow-x-hidden">
+        <aside className="relative hidden w-[47%] overflow-hidden bg-[#1D78FF] lg:block">
           <div className="relative flex h-full flex-col justify-center px-10">
             <h1 className="text-[48px] max-w-[630px] font-bold leading-tight tracking-tight">
               The fastest crypto to Naira conversion
@@ -143,22 +143,28 @@ export default function SetPasswordPage() {
           </div>
         </aside>
 
-        <main className="relative flex w-[53%] items-center justify-center bg-[#0B0A0F] px-6 py-16">
-          <div className="relative w-full max-w-[660px] rounded-[12px] border border-[#2E2E3A] bg-[#16161E] px-[100px] pt-[36px] pb-[64px]">
+        <main className="relative flex w-[100%] lg:w-[53%] items-center justify-center bg-[#0B0A0F] px-6 py-16">
+          <div className="relative w-full max-w-[660px] rounded-[12px] border border-[#2E2E3A] bg-[#16161E] pt-[36px] pb-[32px] px-[20px] sm:pt-[36px] sm:pb-[64px] sm:px-[70px]">
             <div className="flex items-center justify-center gap-2">
-              <Image src="/images/logo.svg" alt="PayDail" width={172} height={45} />
+              <Image
+                src="/images/logo.svg"
+                alt="PayDail"
+                width={172}
+                height={45}
+                className="w-[140px] h-[35px] sm:w-[172px] sm:h-[45px]"
+              />
             </div>
 
-            <div className="mt-[26px] text-center">
-              <h2 className="text-[24px] font-bold">Create a password</h2>
-              <p className="mt-[14px] text-[16px]">
+            <div className="mt-[15px] sm:mt-[26px] text-center">
+              <h2 className="text-[20px] sm:text-[24px] font-bold">Create a password</h2>
+              <p className="mt-[10px] sm:mt-[14px] text-[14px] sm:text-[16px] max-w-[260px] mx-auto sm:max-w-none">
                 Set a new password to secure your account
               </p>
             </div>
 
-            <form className="mt-[66px]" onSubmit={onSubmit}>
+            <form className="mt-[20px] sm:mt-[66px]" onSubmit={onSubmit}>
               <label className="block">
-                <span className="text-[16px] font-medium text-white">
+                <span className="text-[14px] sm:text-[16px] font-medium text-white">
                   Enter password
                 </span>
                 <div className="relative mt-2">
@@ -169,7 +175,7 @@ export default function SetPasswordPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter password"
-                    className="h-[48px] w-full rounded-lg border border-white/10 bg-white/[0.06] px-3 pr-12 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
+                    className="h-[38px] sm:h-[48px] w-full rounded-lg border border-white/10 bg-white/[0.06] px-3 pr-12 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
                   />
                   <button
                     type="button"
@@ -188,8 +194,8 @@ export default function SetPasswordPage() {
               </label>
 
               <div className="mt-3 rounded-[12px] border border-white/10 bg-white/[0.04] px-4 py-3">
-                <p className="text-[14px] font-medium text-white/80">Password must contain:</p>
-                <div className="mt-2 flex flex-wrap gap-1 text-[14px]">
+                <p className="text-[13px] sm:text-[14px] font-medium text-white/80">Password must contain:</p>
+                <div className="mt-2 flex flex-wrap gap-1 text-[13px] sm:text-[14px]">
                   <p className={rules.minLength ? "text-[#22C55E]" : "text-white/60"}>
                     8 characters minimum,
                   </p>
@@ -212,7 +218,7 @@ export default function SetPasswordPage() {
               </div>
 
               <label className="mt-[24px] block">
-                <span className="text-[16px] font-medium text-white">
+                <span className="text-[14px] sm:text-[16px] font-medium text-white">
                   Confirm password
                 </span>
                 <div className="relative mt-2">
@@ -223,7 +229,7 @@ export default function SetPasswordPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Enter password"
-                    className="h-[48px] w-full rounded-lg border border-white/10 bg-white/[0.06] px-3 pr-12 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
+                    className="h-[38px] sm:h-[48px] w-full rounded-lg border border-white/10 bg-white/[0.06] px-3 pr-12 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
                   />
                   <button
                     type="button"
@@ -248,7 +254,7 @@ export default function SetPasswordPage() {
               <button
                 type="submit"
                 disabled={!canContinue}
-                className="mt-[48px] block w-full rounded-[12px] bg-[#1D78FF] py-[12px] text-[16px] font-medium text-white transition hover:bg-[#1A6EF0] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#1E7BFF]/40"
+                className="mt-[48px] block w-full rounded-[12px] bg-[#1D78FF] py-[10px] sm:py-[12px] text-[14px] sm:text-[16px] font-medium text-white transition hover:bg-[#1A6EF0] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#1E7BFF]/40"
               >
                 {loading ? "Saving..." : "Continue"}
               </button>

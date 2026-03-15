@@ -73,7 +73,7 @@ export default async function DashboardPage() {
         <main className="flex-1 flex h-screen flex-col overflow-hidden">
           <PageHeader title="Dashboard" fullName={fullName} email={email} />
 
-          <div className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="flex-1 overflow-y-auto px-6 py-6 overflow-x-hidden w-[100%] max-w-[1300px] mx-auto">
             <div className="grid gap-6 lg:grid-cols-2">
               <TotalBalanceCard
                 nairaBalance={Number.isFinite(nairaBalance) ? nairaBalance : 0}
@@ -84,7 +84,7 @@ export default async function DashboardPage() {
               <section className="rounded-[12px] bg-[#16161E] p-6 border border-[#2D2A3F]">
                 <p className="text-[14px] text-[#A1A5AF]">Frequent Address USDT (Trc 20)</p>
                 <CopyableAddress address="0x734d...84c" />
-                <div className="mt-[70px] grid gap-3">
+                <div className="mt-[40px] sm:mt-[70px] grid gap-3">
                   <div className="flex items-center justify-between text-[12px]">
                     <span className="text-[#A1A5AF] text-[14px]">Last deposit</span>
                     <span className="font-semibold text-[14px] text/white">1,230 USDT</span>
@@ -102,30 +102,30 @@ export default async function DashboardPage() {
                 <h2 className="text-[18px] font-medium text-white">Quick Services</h2>
               </div>
 
-              <div className="mt-[25px] grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-[12px] bg-[#16161E] p-[18px] pb-[13px]">
-                  <div className="flex h-[45px] w-[45px] items-center justify-center rounded-[12px] bg-[#1A2135]">
+              <div className="mt-[25px] grid grid-cols-4 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+                <div className="rounded-[12px] bg-[#16161E] p-[12px] pb-[10px] sm:p-[18px] sm:pb-[13px] text-center">
+                  <div className="mx-auto flex h-[36px] w-[36px] items-center justify-center rounded-[12px] bg-[#1A2135] sm:h-[45px] sm:w-[45px]">
                     <Image src="/images/tv.svg" alt="" width={22} height={22} />
                   </div>
-                  <p className="mt-10 text-[14px] font-semibold">Tv Subscription</p>
+                  <p className="mt-4 text-[10px] font-semibold sm:mt-10 sm:text-[14px]">Tv Subscription</p>
                 </div>
-                <div className="rounded-[12px] bg-[#16161E] p-[18px] pb-[13px]">
-                  <div className="flex h-[45px] w-[45px] items-center justify-center rounded-[12px] bg-[#182825]">
+                <div className="rounded-[12px] bg-[#16161E] p-[12px] pb-[10px] sm:p-[18px] sm:pb-[13px] text-center">
+                  <div className="mx-auto flex h-[36px] w-[36px] items-center justify-center rounded-[12px] bg-[#182825] sm:h-[45px] sm:w-[45px]">
                     <Image src="/images/electricity.svg" alt="" width={18} height={18} />
                   </div>
-                  <p className="mt-10 text-[14px] font-semibold">Electricity</p>
+                  <p className="mt-4 text-[10px] font-semibold sm:mt-10 sm:text-[14px]">Electricity</p>
                 </div>
-                <div className="rounded-[12px] bg-[#16161E] p-[18px] pb-[13px]">
-                  <div className="flex h-[45px] w-[45px] items-center justify-center rounded-[12px] bg-[#2A261D]">
+                <div className="rounded-[12px] bg-[#16161E] p-[12px] pb-[10px] sm:p-[18px] sm:pb-[13px] text-center">
+                  <div className="mx-auto flex h-[36px] w-[36px] items-center justify-center rounded-[12px] bg-[#2A261D] sm:h-[45px] sm:w-[45px]">
                     <Image src="/images/airtime.svg" alt="" width={17} height={17} />
                   </div>
-                  <p className="mt-10 text-[14px] font-semibold">Airtime</p>
+                  <p className="mt-4 text-[10px] font-semibold sm:mt-10 sm:text-[14px]">Airtime</p>
                 </div>
-                <div className="rounded-[12px] bg-[#16161E] p-[18px] pb-[13px]">
-                  <div className="flex h-[45px] w-[45px] items-center justify-center rounded-[12px] bg-[#2E1A25]">
+                <div className="rounded-[12px] bg-[#16161E] p-[12px] pb-[10px] sm:p-[18px] sm:pb-[13px] text-center">
+                  <div className="mx-auto flex h-[36px] w-[36px] items-center justify-center rounded-[12px] bg-[#2E1A25] sm:h-[45px] sm:w-[45px]">
                     <Image src="/images/data.svg" alt="" width={20} height={20} />
                   </div>
-                  <p className="mt-10 text-[14px] font-semibold">Data</p>
+                  <p className="mt-4 text-[10px] font-semibold sm:mt-10 sm:text-[14px]">Data</p>
                 </div>
               </div>
             </section>

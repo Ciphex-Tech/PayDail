@@ -160,8 +160,8 @@ export default function LoginPage() {
         message={errorToastMessage}
         onClose={() => setErrorToastOpen(false)}
       />
-      <div className="flex min-h-screen">
-        <aside className="relative hidden w-[47%] overflow-hidden bg-[#1D78FF] md:block">
+      <div className="flex min-h-screen overflow-x-hidden">
+        <aside className="relative hidden w-[47%] overflow-hidden bg-[#1D78FF] lg:block">
           <div className="relative flex h-full flex-col justify-center px-10">
             <h1 className="text-[48px] max-w-[630px] font-bold leading-tight tracking-tight">
               The fastest crypto to Naira conversion
@@ -173,12 +173,12 @@ export default function LoginPage() {
           </div>
         </aside>
 
-        <main className="relative w-[53%] flex items-center justify-center bg-[#0B0A0F] px-6 py-16">
-          <div className="relative w-full max-w-[660px] rounded-[12px] border border-[#2E2E3A] bg-[#16161E] pt-[36px] pb-[64px] px-[100px]">
+        <main className="relative w-[100%] lg:w-[53%] flex items-center justify-center bg-[#0B0A0F] px-6 py-16">
+          <div className="relative w-full max-w-[660px] rounded-[12px] border border-[#2E2E3A] bg-[#16161E] pt-[36px] pb-[32px] px-[20px] sm:pt-[36px] sm:pb-[64px] sm:px-[70px]">
             <button
               type="button"
               onClick={() => router.push("/signup")}
-              className="absolute top-[24px] left-[24px] inline-flex p-[8px] cursor-pointer rounded-[8px] border-1 border-[#626262] bg-[#2E2E3A] items-center gap-[10px]"
+              className="absolute top-[24px] left-[24px] inline-flex p-[6px] sm:p-[8px] cursor-pointer rounded-[8px] border-1 border-[#626262] bg-[#2E2E3A] items-center gap-[8px] sm:gap-[10px]"
             >
               <svg
                 width="7"
@@ -194,7 +194,7 @@ export default function LoginPage() {
                   fill="white"
                 />
               </svg>
-              <span className="text-[16px] font-medium">Back</span>
+              <span className="text-[13px] sm:text-[16px] font-medium">Back</span>
             </button>
 
             <div className="flex items-center justify-center gap-2">
@@ -203,19 +203,20 @@ export default function LoginPage() {
                 alt="PayDail"
                 width={172}
                 height={45}
+                className="w-[140px] h-[35px] sm:w-[172px] sm:h-[45px]"
               />
             </div>
 
-            <div className="mt-[26px] text-center">
-              <h2 className="text-[24px] font-bold">Login</h2>
-              <p className="mt-[14px] text-[16px]">
+            <div className="mt-[15px] sm:mt-[26px] text-center">
+              <h2 className="text-[20px] sm:text-[24px] font-bold">Login</h2>
+              <p className="mt-[10px] sm:mt-[14px] text-[14px] sm:text-[16px] max-w-[260px] mx-auto sm:max-w-none">
                 Enter your credentials to access your account
               </p>
             </div>
 
-            <form className="mt-[66px]" onSubmit={onSubmit}>
+            <form className="mt-[20px] sm:mt-[66px]" onSubmit={onSubmit}>
               <label className="block">
-                <span className="text-[16px] font-medium text-white">Email</span>
+                <span className="text-[14px] sm:text-[16px] font-medium text-white">Email</span>
                 <input
                   name="email"
                   type="email"
@@ -224,12 +225,12 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="example@domain.com"
                   required
-                  className="h-[43px] w-full mt-2 rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
+                  className="h-[38px] sm:h-[43px] w-full mt-2 rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
                 />
               </label>
 
               <label className="mt-[24px] block">
-                <span className="text-[16px] font-medium text-white">
+                <span className="text-[14px] sm:text-[16px] font-medium text-white">
                   Password
                 </span>
                 <div className="relative mt-2">
@@ -241,7 +242,7 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter password"
                     required
-                    className="h-[48px] w-full rounded-lg border border-white/10 bg-white/[0.06] px-3 pr-12 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
+                    className="h-[38px] sm:h-[48px] w-full rounded-lg border border-white/10 bg-white/[0.06] px-3 pr-12 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
                   />
                   <button
                     type="button"
@@ -275,7 +276,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={!canContinue}
-                className="mt-[24px] block w-full rounded-[12px] bg-[#1D78FF] py-[12px] text-[16px] font-medium text-white transition hover:bg-[#1A6EF0] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#1E7BFF]/40"
+                className="mt-[24px] block w-full rounded-[12px] bg-[#1D78FF] py-[10px] sm:py-[12px] text-[14px] sm:text-[16px] font-medium text-white transition hover:bg-[#1A6EF0] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#1E7BFF]/40"
               >
                 {loading
                   ? "Signing in..."

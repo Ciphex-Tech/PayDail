@@ -284,8 +284,8 @@ function VerifyEmailPageInner() {
         message="Couldn't process the request"
         onClose={() => setErrorToastOpen(false)}
       />
-      <div className="flex min-h-screen">
-        <aside className="relative hidden w-[47%] overflow-hidden bg-[#1D78FF] md:block">
+      <div className="flex min-h-screen overflow-x-hidden">
+        <aside className="relative hidden w-[47%] overflow-hidden bg-[#1D78FF] lg:block">
           <div className="relative flex h-full flex-col justify-center px-10">
             <h1 className="text-[48px] max-w-[630px] font-bold leading-tight tracking-tight">
               The fastest crypto to Naira conversion
@@ -297,22 +297,28 @@ function VerifyEmailPageInner() {
           </div>
         </aside>
 
-        <main className="relative w-[53%] flex items-center justify-center bg-[#0B0A0F] px-6 py-16">
+        <main className="relative w-[100%] lg:w-[53%] flex items-center justify-center bg-[#0B0A0F] px-6 py-16">
 
-          <div className="relative w-full max-w-[660px] rounded-[12px] border border-[#2E2E3A] bg-[#16161E] pt-[36px] pb-[64px] px-[70px]">
+          <div className="relative w-full max-w-[660px] rounded-[12px] border border-[#2E2E3A] bg-[#16161E] pt-[36px] pb-[32px] px-[20px] sm:pt-[36px] sm:pb-[64px] sm:px-[70px]">
             <div className="flex items-center justify-center gap-2">
-              <Image src="/images/logo.svg" alt="PayDail" width={172} height={45} />
+              <Image
+                src="/images/logo.svg"
+                alt="PayDail"
+                width={172}
+                height={45}
+                className="w-[140px] h-[35px] sm:w-[172px] sm:h-[45px]"
+              />
             </div>
 
-            <div className="mt-6 text-center">
-              <h2 className="text-[24px] font-bold">Verify Email</h2>
-              <p className="mt-[14px] text-[16px]">
+            <div className="mt-[15px] sm:mt-6 text-center">
+              <h2 className="text-[20px] sm:text-[24px] font-bold">Verify Email</h2>
+              <p className="mt-[10px] sm:mt-[14px] text-[14px] sm:text-[16px] max-w-[260px] mx-auto sm:max-w-none">
                 Verify email address to proceed
               </p>
             </div>
 
-            <form className="mt-[66px] space-y-4" onSubmit={onSubmit}>
-              <p className="text-center text-white text-[14px]">
+            <form className="mt-[20px] sm:mt-[66px] space-y-4" onSubmit={onSubmit}>
+              <p className="text-center text-white text-[13px] sm:text-[14px]">
                 Enter the OTP sent to{" "}
                 <span className="text-white font-medium">{email || "your email"}</span>
               </p>
@@ -334,7 +340,7 @@ function VerifyEmailPageInner() {
                       onChange={(e) => handleChange(index, e.target.value)}
                       onPaste={(e) => handlePaste(index, e)}
                       onKeyDown={(e) => handleKeyDown(index, e)}
-                      className="h-[48px] w-[48px] rounded-lg border border-white/10 bg-white/[0.06] text-center text-base text-white outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
+                      className="h-[40px] w-[40px] sm:h-[48px] sm:w-[48px] rounded-lg border border-white/10 bg-white/[0.06] text-center text-[16px] sm:text-base text-white outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
                       aria-label={`OTP digit ${index + 1}`}
                     />
                   ))}
@@ -350,7 +356,7 @@ function VerifyEmailPageInner() {
               <button
                 type="submit"
                 disabled={loading}
-                className="rounded-[12px] mt-[48px] py-[12px] px-[72px] cursor-pointer block mx-auto bg-[#1D78FF] text-[16px] font-medium text-white transition hover:bg-[#1A6EF0] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#1E7BFF]/40"
+                className="rounded-[12px] mt-[48px] py-[10px] sm:py-[12px] w-full sm:w-auto sm:px-[72px] cursor-pointer block mx-auto bg-[#1D78FF] text-[14px] sm:text-[16px] font-medium text-white transition hover:bg-[#1A6EF0] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#1E7BFF]/40"
               >
                 {loading ? "Verifying..." : "Continue"}
               </button>
@@ -372,12 +378,12 @@ function VerifyEmailPageInner() {
             <button
               type="button"
               onClick={() => router.push("/signup")}
-              className="absolute top-[24px] left-[24px] inline-flex p-[8px] cursor-pointer rounded-[8px] border-1 border-[#626262] bg-[#2E2E3A] items-center gap-[10px]"
+              className="absolute top-[24px] left-[24px] inline-flex p-[6px] sm:p-[8px] cursor-pointer rounded-[8px] border-1 border-[#626262] bg-[#2E2E3A] items-center gap-[8px] sm:gap-[10px]"
             >
               <svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path fillRule="evenodd" clipRule="evenodd" d="M1.60919 5.65667L6.32319 10.3707L5.38052 11.3133L0.195191 6.128C0.0702103 6.00298 0 5.83344 0 5.65667C0 5.47989 0.0702103 5.31035 0.195191 5.18533L5.38052 0L6.32319 0.942667L1.60919 5.65667Z" fill="white"/>
 </svg>
-<span className="text-[16px] font-medium">Back</span>
+<span className="text-[13px] sm:text-[16px] font-medium">Back</span>
             </button>
           </div>
         </main>

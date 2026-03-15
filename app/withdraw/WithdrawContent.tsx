@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+
 type Bank = { id: number; name: string; code: string };
 
 type Withdrawal = {
@@ -66,6 +68,9 @@ function maskAccount(acct: string) {
 export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Props) {
   const router = useRouter();
 
+  const [latestBalance, setLatestBalance] = useState<number>(nairaBalance);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+
   const [banks, setBanks] = useState<Bank[]>([]);
   const [banksLoading, setBanksLoading] = useState(true);
 
@@ -85,6 +90,8 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
 
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(initialWithdrawals);
 
+  const refreshedByRealtimeRef = useRef(false);
+
   const bankDropRef = useRef<HTMLDivElement>(null);
   const verifyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -103,9 +110,9 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
     if (!amount) return "";
     if (!Number.isFinite(amountNum) || amountNum <= 0) return "Enter a valid amount";
     if (amountNum < 1000) return "Minimum withdrawal is ₦1,000";
-    if (amountNum > nairaBalance) return `Insufficient balance (₦${nairaBalance.toLocaleString()})`;
+    if (amountNum > latestBalance) return `Insufficient balance (₦${latestBalance.toLocaleString()})`;
     return "";
-  }, [amount, amountNum, nairaBalance]);
+  }, [amount, amountNum, latestBalance]);
 
   const canSubmit =
     !submitting &&
@@ -113,8 +120,79 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
     verifyState === "verified" &&
     accountName.trim().length > 0 &&
     amountNum >= 1000 &&
-    amountNum <= nairaBalance &&
+    amountNum <= latestBalance &&
     !amountError;
+
+  useEffect(() => {
+    setLatestBalance(nairaBalance);
+  }, [nairaBalance]);
+
+  useEffect(() => {
+    setWithdrawals(initialWithdrawals);
+    refreshedByRealtimeRef.current = false;
+  }, [initialWithdrawals]);
+
+  async function refreshBalance() {
+    setBalanceLoading(true);
+    try {
+      const res = await fetch("/api/balance", { method: "GET", cache: "no-store" });
+      const json = (await res.json()) as { ok?: boolean; naira_balance?: number };
+      if (res.ok && json && typeof json.naira_balance === "number") {
+        setLatestBalance(json.naira_balance);
+      }
+    } finally {
+      setBalanceLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    refreshBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let canceled = false;
+
+    async function subscribe() {
+      const { data } = await supabase.auth.getUser();
+      const userId = data?.user?.id;
+      if (!userId || canceled) return;
+
+      channel = supabase
+        .channel(`withdrawals-status-${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "withdrawals",
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            const nextStatus = String((payload as any)?.new?.status ?? "").toLowerCase();
+            const prevStatus = String((payload as any)?.old?.status ?? "").toLowerCase();
+            if (nextStatus === prevStatus) return;
+
+            if ((nextStatus === "completed" || nextStatus === "failed") && !refreshedByRealtimeRef.current) {
+              refreshedByRealtimeRef.current = true;
+              router.refresh();
+            }
+          },
+        )
+        .subscribe();
+    }
+
+    subscribe();
+
+    return () => {
+      canceled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     async function loadBanks() {
@@ -181,6 +259,8 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
     setSubmitError("");
     setSubmitSuccess("");
 
+    await refreshBalance();
+
     if (!canSubmit) return;
 
     setSubmitting(true);
@@ -218,6 +298,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
       setVerifyState("idle");
 
       router.refresh();
+      refreshBalance();
 
       const newWd: Withdrawal = {
         id: json.withdrawal.id,
@@ -246,7 +327,9 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
 
         <div className="mt-2 flex items-center gap-2">
           <span className="text-[13px] text-[#A1A5AF]">Available balance:</span>
-          <span className="text-[15px] font-semibold text-white">{formatNgn(nairaBalance)}</span>
+          <span className="text-[15px] font-semibold text-white">
+            {balanceLoading ? "..." : formatNgn(latestBalance)}
+          </span>
         </div>
 
         {submitSuccess && (

@@ -88,13 +88,36 @@ export async function POST(req: Request) {
       );
     }
 
-    const { error: deductErr } = await admin
+    const { data: deductRows, error: deductErr } = await admin
       .from("users_info")
       .update({ naira_balance: balance - amount })
-      .eq("id", userId);
+      .eq("id", userId)
+      .eq("naira_balance", userInfo.naira_balance)
+      .select("naira_balance");
 
     if (deductErr) {
       return NextResponse.json({ error: "Failed to lock balance" }, { status: 500 });
+    }
+
+    if (!deductRows || deductRows.length === 0) {
+      const { data: latestInfo } = await admin
+        .from("users_info")
+        .select("naira_balance")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const latestBalance = Number(latestInfo?.naira_balance ?? 0);
+      if (latestBalance < amount) {
+        return NextResponse.json(
+          { error: `Insufficient balance. Available: ₦${latestBalance.toLocaleString()}` },
+          { status: 400 },
+        );
+      }
+
+      return NextResponse.json(
+        { error: "Your balance changed. Please refresh and try again." },
+        { status: 409 },
+      );
     }
 
     const status = amount > REVIEW_THRESHOLD ? "review_required" : "pending";
