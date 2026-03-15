@@ -30,7 +30,7 @@ async function runOnce() {
   const { data: stuck, error } = await admin
     .from("withdrawals")
     .select(
-      "id,user_id,amount,status,provider_reference,external_reference,idempotency_key,created_at,updated_at",
+      "id,user_id,amount,status,reference,provider_reference,external_reference,idempotency_key,created_at,updated_at",
     )
     .or(
       `and(status.in.(pending,approved),created_at.lt.${threshold}),and(status.eq.processing,updated_at.lt.${threshold})`,
@@ -86,9 +86,10 @@ async function runOnce() {
 
   for (const w of processing as any[]) {
     try {
-      if (!w.external_reference) continue;
+      const ref = String(w.external_reference ?? w.reference ?? "").trim();
+      if (!ref) continue;
 
-      const verified = await verifyTransferByReference(String(w.external_reference));
+      const verified = await verifyTransferByReference(ref);
       if (!verified) continue;
 
       const next = normalizeProviderStatus((verified as any).status);

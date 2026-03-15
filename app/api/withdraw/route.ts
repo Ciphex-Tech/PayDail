@@ -10,6 +10,59 @@ const MIN_WITHDRAWAL = 1_000;
 const REVIEW_THRESHOLD = 100_000;
 const DUPLICATE_GUARD_SECONDS = 60;
 
+function makeShortDedupeReference(params: {
+  userId: string;
+  amount: number;
+  bankCode: string;
+  accountNumber: string;
+}) {
+  const { userId, amount, bankCode, accountNumber } = params;
+
+  // 15s bucket: allows multiple withdrawals over time, but collapses rapid re-clicks.
+  const bucket = Math.floor(Date.now() / 15_000);
+  const shortUser = userId.replace(/-/g, "").slice(0, 10);
+
+  const hash = crypto
+    .createHash("sha256")
+    .update(`${userId}:${amount}:${bankCode}:${accountNumber}:${bucket}`)
+    .digest("hex")
+    .slice(0, 10);
+
+  return `WD_${shortUser}_${bucket}_${hash}`;
+}
+
+async function refundBalanceByAmount(params: {
+  admin: ReturnType<typeof createSupabaseAdminClient>;
+  userId: string;
+  amount: number;
+}) {
+  const { admin, userId, amount } = params;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data: info, error: readErr } = await admin
+      .from("users_info")
+      .select("naira_balance")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (readErr) throw new Error(readErr.message);
+
+    const current = Number((info as any)?.naira_balance ?? 0);
+    const next = current + amount;
+
+    const { data: updated, error: updErr } = await admin
+      .from("users_info")
+      .update({ naira_balance: next })
+      .eq("id", userId)
+      .eq("naira_balance", (info as any)?.naira_balance)
+      .select("naira_balance");
+
+    if (updErr) throw new Error(updErr.message);
+    if (updated && updated.length > 0) return;
+  }
+
+  throw new Error("refund_balance_conflict");
+}
+
 export async function POST(req: Request) {
   try {
     const supabase = await createSupabaseServerClient();
@@ -74,24 +127,24 @@ export async function POST(req: Request) {
 
     try {
       return await withRequiredLock(`withdraw_create_${userId}`, async () => {
-        const threshold = new Date(Date.now() - DUPLICATE_GUARD_SECONDS * 1000).toISOString();
-        const { data: recent } = await admin
+        const dedupeRef = makeShortDedupeReference({
+          userId,
+          amount,
+          bankCode,
+          accountNumber,
+        });
+
+        // Idempotency (Option B): collapse rapid repeat clicks by returning the existing withdrawal
+        // with the same deterministic reference within this short time bucket.
+        const { data: existingByRef } = await admin
           .from("withdrawals")
           .select("id,reference,status,created_at")
           .eq("user_id", userId)
-          .in("status", ["pending", "review_required", "approved", "processing"])
-          .gte("created_at", threshold)
-          .order("created_at", { ascending: false })
+          .eq("reference", dedupeRef)
           .limit(1);
 
-        if (recent && recent.length > 0) {
-          return NextResponse.json(
-            {
-              error: "A withdrawal request was just submitted. Please wait a moment.",
-              existing_withdrawal: recent[0],
-            },
-            { status: 409 },
-          );
+        if (existingByRef && existingByRef.length > 0) {
+          return NextResponse.json({ ok: true, withdrawal: existingByRef[0], deduped: true });
         }
 
         const { data: userInfo, error: balErr } = await admin
@@ -146,7 +199,7 @@ export async function POST(req: Request) {
         }
 
         const status = amount > REVIEW_THRESHOLD ? "review_required" : "pending";
-        const reference = `WD_${userId.replace(/-/g, "").slice(0, 10)}_${Date.now()}`;
+        const reference = dedupeRef;
         const idempotencyKey = crypto.randomUUID();
 
         const { data: withdrawal, error: insertErr } = await admin
@@ -168,11 +221,37 @@ export async function POST(req: Request) {
           .single();
 
         if (insertErr) {
-          await admin
-            .from("users_info")
-            .update({ naira_balance: balance })
-            .eq("id", userId);
+          // Refund safely without overwriting the user's balance (handles race conditions).
+          try {
+            await refundBalanceByAmount({ admin, userId, amount });
+          } catch (refundErr: any) {
+            console.error("/api/withdraw refund error", {
+              userId,
+              amount,
+              message: String(refundErr?.message ?? refundErr),
+            });
+          }
+
           console.error("/api/withdraw insert error", insertErr.message);
+
+          // If DB enforces uniqueness for active withdrawals, return the existing one.
+          if (/duplicate|unique/i.test(insertErr.message)) {
+            const { data: existing } = await admin
+              .from("withdrawals")
+              .select("id,reference,status,created_at")
+              .eq("user_id", userId)
+              .eq("reference", reference)
+              .limit(1);
+
+            return NextResponse.json(
+              {
+                error: "Duplicate submission.",
+                existing_withdrawal: existing?.[0] ?? null,
+              },
+              { status: 409 },
+            );
+          }
+
           return NextResponse.json({ error: "Failed to create withdrawal request" }, { status: 500 });
         }
 

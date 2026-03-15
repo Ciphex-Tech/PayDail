@@ -339,7 +339,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
         )}
 
         {submitError && (
-          <div className="mt-4 rounded-[10px] bg-red-500/10 border border-red-500/20 px-4 py-3 text-[13px] text-red-400">
+          <div className="mt-4 rounded-[10px] bg-red-500/10 border border-red-500/20 px-4 py-3 text-[13px] text-red-400 hidden">
             {submitError}
           </div>
         )}
