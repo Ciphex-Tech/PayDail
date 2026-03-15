@@ -4,6 +4,7 @@ import {
   initiateTransfer,
   verifyTransferByReference,
 } from "@/lib/paystack/client";
+import { restoreWithdrawalBalanceOnce } from "@/lib/withdraw/restoreBalanceOnce";
 
 export type WithdrawalRow = {
   id: string;
@@ -12,6 +13,7 @@ export type WithdrawalRow = {
   currency: string | null;
   status: string;
   idempotency_key: string | null;
+  reference: string | null;
   external_reference: string | null;
   provider_reference: string | null;
   recipient_code: string | null;
@@ -30,6 +32,83 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function isPaystackTestEnv(): boolean {
+  const sk = String(process.env.PAYSTACK_SECRET_KEY ?? "");
+  const pk = String(
+    process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ??
+      process.env.PAYSTACK_PUBLIC_KEY ??
+      process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC ??
+      "",
+  );
+  return sk.startsWith("sk_test") || pk.startsWith("pk_test");
+}
+
+async function simulateTestWebhookOutcome(params: {
+  admin: ReturnType<typeof createSupabaseAdminClient>;
+  withdrawal: WithdrawalRow;
+  providerReference: string;
+}) {
+  const { admin, withdrawal: w, providerReference } = params;
+
+  const roll = Math.random();
+  const isSuccess = roll < 0.7;
+
+  if (isSuccess) {
+    await admin
+      .from("withdrawals")
+      .update({
+        status: "completed",
+        provider_reference: providerReference,
+        error_message: null,
+        failure_reason: null,
+        updated_at: nowIso(),
+      })
+      .eq("id", w.id)
+      .eq("status", "processing");
+
+    await admin.from("notifications").insert({
+      user_id: w.user_id,
+      title: "Withdrawal Successful",
+      message: `Your withdrawal of ₦${Number(w.amount).toLocaleString()} has been sent to your bank account successfully.`,
+      notification_type: "withdrawal_success",
+      read: false,
+      status: "completed",
+    });
+
+    return { outcome: "success" as const };
+  }
+
+  const reason = "simulated_failure";
+  await admin
+    .from("withdrawals")
+    .update({
+      status: "failed",
+      provider_reference: providerReference,
+      failure_reason: reason,
+      error_message: reason,
+      updated_at: nowIso(),
+    })
+    .eq("id", w.id)
+    .eq("status", "processing");
+
+  await restoreWithdrawalBalanceOnce({
+    withdrawalId: w.id,
+    userId: w.user_id,
+    amount: Number(w.amount),
+  });
+
+  await admin.from("notifications").insert({
+    user_id: w.user_id,
+    title: "Withdrawal Failed",
+    message: `Your withdrawal of ₦${Number(w.amount).toLocaleString()} could not be processed. Your balance has been restored.`,
+    notification_type: "withdrawal_failed",
+    read: false,
+    status: "failed",
+  });
+
+  return { outcome: "failed" as const };
+}
+
 function safeString(v: unknown): string {
   if (typeof v === "string") return v;
   if (v == null) return "";
@@ -46,7 +125,7 @@ export async function executeWithdrawalTransfer(withdrawalId: string) {
   const { data: w0, error: readErr } = await admin
     .from("withdrawals")
     .select(
-      "id,user_id,amount,currency,status,idempotency_key,external_reference,provider_reference,recipient_code,bank_code,bank_name,account_number,account_name,paystack_response,failure_reason,error_message,created_at,updated_at",
+      "id,user_id,amount,currency,status,idempotency_key,reference,external_reference,provider_reference,recipient_code,bank_code,bank_name,account_number,account_name,paystack_response,failure_reason,error_message,created_at,updated_at",
     )
     .eq("id", withdrawalId)
     .maybeSingle();
@@ -60,7 +139,7 @@ export async function executeWithdrawalTransfer(withdrawalId: string) {
   const logBase = {
     withdrawal_id: w.id,
     idempotency_key: w.idempotency_key,
-    external_reference: w.external_reference,
+    external_reference: w.external_reference ?? w.reference,
     provider_reference: w.provider_reference,
     status: w.status,
     at: nowIso(),
@@ -75,8 +154,9 @@ export async function executeWithdrawalTransfer(withdrawalId: string) {
     throw new Error("missing_idempotency_key");
   }
 
-  if (!w.external_reference) {
-    throw new Error("missing_external_reference");
+  const externalRef = String(w.external_reference ?? w.reference ?? "").trim();
+  if (!externalRef) {
+    throw new Error("missing_reference");
   }
 
   const { data: existingByIdem, error: idemErr } = await admin
@@ -114,18 +194,18 @@ export async function executeWithdrawalTransfer(withdrawalId: string) {
     };
   }
 
-  const isTestMode = (process.env.PAYSTACK_SECRET_KEY ?? "").startsWith("sk_test_");
+  const isTestMode = isPaystackTestEnv();
   const isUnverified = String(w.account_name ?? "").includes("Unverified");
 
   if (isTestMode && isUnverified) {
-    const fakeTransferCode = `TEST_TRANSFER_${w.external_reference}`;
+    const fakeTransferCode = `TEST_TRANSFER_${externalRef}`;
 
     await admin
       .from("withdrawals")
       .update({
         recipient_code: w.recipient_code ?? `TEST_RECIPIENT_${w.account_number}`,
         provider_reference: fakeTransferCode,
-        paystack_response: { simulated: true, reference: w.external_reference },
+        paystack_response: { simulated: true, reference: externalRef },
         updated_at: nowIso(),
       })
       .eq("id", w.id);
@@ -135,7 +215,18 @@ export async function executeWithdrawalTransfer(withdrawalId: string) {
       provider_reference: fakeTransferCode,
     });
 
-    return { ok: true, simulated: true, provider_reference: fakeTransferCode };
+    const simulated = await simulateTestWebhookOutcome({
+      admin,
+      withdrawal: w,
+      providerReference: fakeTransferCode,
+    });
+
+    return {
+      ok: true,
+      simulated: true,
+      provider_reference: fakeTransferCode,
+      simulated_webhook: simulated,
+    };
   }
 
   let recipientCode = w.recipient_code;
@@ -171,8 +262,8 @@ export async function executeWithdrawalTransfer(withdrawalId: string) {
     const transfer = await initiateTransfer(
       amountKobo,
       recipientCode,
-      w.external_reference,
-      `PayDail withdrawal ${w.external_reference}`,
+      externalRef,
+      `PayDail withdrawal ${externalRef}`,
     );
 
     await admin
@@ -189,6 +280,20 @@ export async function executeWithdrawalTransfer(withdrawalId: string) {
       provider_reference: transfer.transfer_code,
     });
 
+    if (isTestMode) {
+      const simulated = await simulateTestWebhookOutcome({
+        admin,
+        withdrawal: w,
+        providerReference: transfer.transfer_code,
+      });
+      return {
+        ok: true,
+        provider_reference: transfer.transfer_code,
+        transfer,
+        simulated_webhook: simulated,
+      };
+    }
+
     return { ok: true, provider_reference: transfer.transfer_code, transfer };
   } catch (e: any) {
     const msg = safeString(e?.response?.data?.message ?? e?.message ?? "transfer_error");
@@ -200,7 +305,7 @@ export async function executeWithdrawalTransfer(withdrawalId: string) {
 
     // Paystack can reject duplicate references; if so, verify and persist the existing transfer.
     if (/reference/i.test(msg) && /(taken|exists|duplicate)/i.test(msg)) {
-      const verified = await verifyTransferByReference(w.external_reference);
+      const verified = await verifyTransferByReference(externalRef);
       const providerRef = verified?.transfer_code;
 
       if (providerRef) {

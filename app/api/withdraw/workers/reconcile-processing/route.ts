@@ -24,9 +24,8 @@ async function runOnce() {
 
   const { data: withdrawals, error } = await admin
     .from("withdrawals")
-    .select("id,user_id,amount,status,external_reference,provider_reference,idempotency_key")
+    .select("id,user_id,amount,status,reference,external_reference,provider_reference,idempotency_key")
     .eq("status", "processing")
-    .not("external_reference", "is", null)
     .order("created_at", { ascending: true })
     .limit(BATCH_SIZE);
 
@@ -46,7 +45,13 @@ async function runOnce() {
 
   for (const w of withdrawals as any[]) {
     try {
-      const verified = await verifyTransferByReference(String(w.external_reference));
+      const ref = String(w.external_reference ?? w.reference ?? "").trim();
+      if (!ref) {
+        stillProcessing++;
+        continue;
+      }
+
+      const verified = await verifyTransferByReference(ref);
 
       if (!verified) {
         stillProcessing++;

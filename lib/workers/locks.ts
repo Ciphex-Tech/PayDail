@@ -15,11 +15,41 @@ export async function tryWorkerAdvisoryLock(lockKey: string): Promise<boolean> {
   return Boolean((data as any)?.locked ?? data);
 }
 
+export async function tryRequiredAdvisoryLock(lockKey: string): Promise<boolean> {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin.rpc("try_advisory_lock", { lock_key: lockKey });
+
+  if (error) {
+    console.error("[worker.lock] required lock rpc missing or failed", {
+      lockKey,
+      message: error.message,
+    });
+    return false;
+  }
+
+  return Boolean((data as any)?.locked ?? data);
+}
+
 export async function releaseWorkerAdvisoryLock(lockKey: string): Promise<void> {
   const admin = createSupabaseAdminClient();
   const { error } = await admin.rpc("advisory_unlock", { lock_key: lockKey });
   if (error) {
     console.warn("[worker.lock] unlock rpc failed", { lockKey, message: error.message });
+  }
+}
+
+export async function withRequiredLock<T>(lockKey: string, fn: () => Promise<T>): Promise<T> {
+  const locked = await tryRequiredAdvisoryLock(lockKey);
+  if (!locked) {
+    const err = new Error("lock_unavailable");
+    (err as any).code = "LOCK_UNAVAILABLE";
+    throw err;
+  }
+
+  try {
+    return await fn();
+  } finally {
+    await releaseWorkerAdvisoryLock(lockKey);
   }
 }
 
