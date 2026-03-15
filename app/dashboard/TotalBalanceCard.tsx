@@ -45,7 +45,7 @@ export default function TotalBalanceCard({
           </p>
           <p className="mt-2 text-[10px] text-white font-medium">{lastUpdatedLabel}</p>
         </div>
-        <div className="rounded-[10px] bg-[#00FF4433] flex items-center gap-2 px-[12px] py-[10px] text-[12px] text-[#00FF44] font-semibold">
+        <div className="rounded-[5px] sm:rounded-[10px] bg-[#00FF4433] flex items-center gap-2 sm:px-[12px] px-[6px] py-[8px] sm:py-[10px] text-[10px] sm:text-[12px] text-[#00FF44] font-semibold">
           <svg width="17" height="11" viewBox="0 0 17 11" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M1 9.33333L6 4.33333L9.33333 7.66667L16 1" stroke="#00FF44" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M12.6665 1H15.9998V4.33333" stroke="#00FF44" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

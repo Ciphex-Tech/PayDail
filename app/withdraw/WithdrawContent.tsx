@@ -85,6 +85,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
 
   const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const inFlightRef = useRef(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
 
@@ -256,14 +257,22 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+
+    setSubmitting(true);
+
     setSubmitError("");
     setSubmitSuccess("");
 
     await refreshBalance();
 
-    if (!canSubmit) return;
-
-    setSubmitting(true);
+    if (!canSubmit) {
+      setSubmitting(false);
+      inFlightRef.current = false;
+      return;
+    }
     try {
       const res = await fetch("/api/withdraw", {
         method: "POST",
@@ -316,6 +325,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
       setSubmitError("Network error. Please try again.");
     } finally {
       setSubmitting(false);
+      inFlightRef.current = false;
     }
   }
 
@@ -464,7 +474,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
 
           <button
             type="submit"
-            disabled={!canSubmit}
+            disabled={!canSubmit || submitting}
             className="mt-1 h-[44px] w-full rounded-[10px] bg-[#1D78FF] text-[14px] font-semibold text-white transition hover:bg-[#1A6EF0] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "Submitting…" : "Withdraw"}
@@ -477,7 +487,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
       </div>
 
       {/* ── History ── */}
-      <div className="rounded-[12px] border border-[#2D2A3F] bg-[#16161E] p-6 h-[560px] flex flex-col">
+      <div className="rounded-[12px] border border-[#2D2A3F] bg-[#16161E] p-6 h-[100vh] flex flex-col">
         <h2 className="text-[18px] font-semibold text-white">Withdrawal History</h2>
 
         {withdrawals.length === 0 ? (
