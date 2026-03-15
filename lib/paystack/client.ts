@@ -75,6 +75,16 @@ export type Transfer = {
   reference: string;
 };
 
+export type VerifiedTransfer = {
+  transfer_code: string;
+  id: number;
+  status: string;
+  reference: string;
+  amount?: number;
+  currency?: string;
+  reason?: string;
+};
+
 export async function initiateTransfer(
   amountKobo: number,
   recipientCode: string,
@@ -93,6 +103,17 @@ export async function initiateTransfer(
     { headers: authHeaders() },
   );
   return res.data.data as Transfer;
+}
+
+export async function verifyTransferByReference(reference: string): Promise<VerifiedTransfer | null> {
+  const ref = String(reference || "").trim();
+  if (!ref) return null;
+
+  const res = await axios.get(`${BASE_URL}/transfer/verify/${encodeURIComponent(ref)}`, {
+    headers: authHeaders(),
+  });
+
+  return (res.data?.data ?? null) as VerifiedTransfer | null;
 }
 
 export function verifyWebhookSignature(rawBody: string, signature: string): boolean {

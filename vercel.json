@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/withdraw/worker",
+      "path": "/api/withdraw/workers/process-withdrawals",
       "schedule": "0 0 * * *"
     }
   ]

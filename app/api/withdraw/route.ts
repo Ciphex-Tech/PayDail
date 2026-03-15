@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -122,17 +123,21 @@ export async function POST(req: Request) {
 
     const status = amount > REVIEW_THRESHOLD ? "review_required" : "pending";
     const reference = `WD_${userId.replace(/-/g, "").slice(0, 10)}_${Date.now()}`;
+    const idempotencyKey = crypto.randomUUID();
 
     const { data: withdrawal, error: insertErr } = await admin
       .from("withdrawals")
       .insert({
         user_id: userId,
         amount,
+        currency: "NGN",
         bank_code: bankCode,
         bank_name: bankName,
         account_number: accountNumber,
         account_name: accountName,
         reference,
+        external_reference: reference,
+        idempotency_key: idempotencyKey,
         status,
       })
       .select("id, reference, status, amount")

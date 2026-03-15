@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { verifyWebhookSignature } from "@/lib/paystack/client";
+import { restoreWithdrawalBalanceOnce } from "@/lib/withdraw/restoreBalanceOnce";
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
   const event = body?.event as string;
   const data = body?.data ?? {};
   const reference = data?.reference as string | undefined;
+  const providerReference = (data?.transfer_code as string | undefined) ?? null;
 
   console.info("/api/paystack/webhook", { event, reference });
 
@@ -46,6 +48,8 @@ export async function POST(req: Request) {
       .from("withdrawals")
       .update({
         status: "completed",
+        provider_reference: providerReference,
+        error_message: null,
         paystack_response: data,
       })
       .eq("id", wd.id);
@@ -61,27 +65,23 @@ export async function POST(req: Request) {
   }
 
   if (event === "transfer.failed" || event === "transfer.reversed") {
+    const reason = String(data?.reason ?? "Transfer failed");
     await admin
       .from("withdrawals")
       .update({
         status: "failed",
-        failure_reason: String(data?.reason ?? "Transfer failed"),
+        provider_reference: providerReference,
+        failure_reason: reason,
+        error_message: reason,
         paystack_response: data,
       })
       .eq("id", wd.id);
 
-    const { data: userInfo } = await admin
-      .from("users_info")
-      .select("naira_balance")
-      .eq("id", wd.user_id)
-      .maybeSingle();
-
-    const restoredBalance = Number(userInfo?.naira_balance ?? 0) + Number(wd.amount);
-
-    await admin
-      .from("users_info")
-      .update({ naira_balance: restoredBalance })
-      .eq("id", wd.user_id);
+    await restoreWithdrawalBalanceOnce({
+      withdrawalId: wd.id,
+      userId: wd.user_id,
+      amount: Number(wd.amount),
+    });
 
     await admin.from("notifications").insert({
       user_id: wd.user_id,
