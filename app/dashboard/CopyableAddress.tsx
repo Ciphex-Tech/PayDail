@@ -22,7 +22,7 @@ export default function CopyableAddress({ address }: { address: string }) {
 
   return (
     <div className="mt-2 flex items-center gap-2">
-      <p className="text-[14px] text-white font-normal">{address}</p>
+      <p className="text-[12px] sm:text-[14px] text-white font-normal">{address}</p>
       <button
         type="button"
         onClick={onCopy}

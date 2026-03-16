@@ -124,7 +124,7 @@ export default async function DashboardPage() {
   };
 
   const statusPill = (s: string) => {
-    const v = String(s || "").toLowerCase();
+    const v = String(s || "").trim().toLowerCase();
     if (v === "completed" || v === "success" || v === "successful") {
       return "bg-[#00A82D1A] text-[#00A82D]";
     }
@@ -138,11 +138,23 @@ export default async function DashboardPage() {
   };
 
   const displayStatus = (kind: "deposit" | "withdrawal", status: string) => {
-    const v = String(status || "").toLowerCase();
+    const v = String(status || "").trim().toLowerCase();
     if (kind === "withdrawal") {
       if (v === "review_required" || v === "approved" || v === "processing") return "pending";
     }
     return v || "pending";
+  };
+
+  const mobileReference = (kind: "deposit" | "withdrawal", reference: string | null) => {
+    const ref = (reference ?? "").trim();
+    if (!ref) return "-";
+    if (kind === "deposit") {
+      if (ref.length <= 6) return ref;
+      return `${ref.slice(0, 3)}...${ref.slice(-2)}`;
+    }
+
+    if (ref.length <= 8) return ref;
+    return `WD...${ref.slice(-3)}`;
   };
 
   const shortReference = (kind: "deposit" | "withdrawal", reference: string | null) => {
@@ -173,28 +185,28 @@ export default async function DashboardPage() {
                 lastUpdatedLabel={lastUpdatedLabel}
               />
 
-              <section className="rounded-[12px] bg-[#16161E] p-6 border border-[#2D2A3F]">
-                <p className="text-[14px] text-[#A1A5AF]">Frequent Address USDT (Trc 20)</p>
+              <section className="rounded-[12px] bg-[#16161E] p-4 sm:p-6 border border-[#2D2A3F]">
+                <p className="text-[12px] sm:text-[14px] text-[#A1A5AF]">Frequent Address USDT (Trc 20)</p>
                 <CopyableAddress address="0x734d...84c" />
-                <div className="mt-[40px] sm:mt-[70px] grid gap-3">
+                <div className="mt-[20px] sm:mt-[40px] sm:mt-[70px] grid gap-3">
                   <div className="flex items-center justify-between text-[12px]">
-                    <span className="text-[#A1A5AF] text-[14px]">Last deposit</span>
-                    <span className="font-semibold text-[14px] text/white">1,230 USDT</span>
+                    <span className="text-[#A1A5AF] text-[12px] sm:text-[14px]">Last deposit</span>
+                    <span className="font-semibold text-[12px] sm:text-[14px] text/white">1,230 USDT</span>
                   </div>
                   <div className="flex items-center justify-between text-[12px]">
-                    <span className="text-[#A1A5AF] text-[14px]">Last Withdrawal</span>
-                    <span className="font-semibold text-[14px] text/white">750,920 Naira</span>
+                    <span className="text-[#A1A5AF] text-[12px] sm:text-[14px]">Last Withdrawal</span>
+                    <span className="font-semibold text-[12px] sm:text-[14px] text/white">750,920 Naira</span>
                   </div>
                 </div>
               </section>
             </div>
 
-            <section className="mt-[30px] sm:mt-[50px]">
+            <section className="mt-[20px] sm:mt-[50px]">
               <div className="flex items-center justify-between">
                 <h2 className="text-[16px] sm:text-[18px] font-medium text-white">Quick Services</h2>
               </div>
 
-              <div className="mt-[20px] sm:mt-[25px] grid grid-cols-4 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 rounded-[12px] px-2 p-6 sm:p-none bg-[#16161E] sm:bg-transparent">
+              <div className="mt-[20px] sm:mt-[25px] grid grid-cols-4 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 rounded-[12px] px-2 p-3 sm:p-none bg-[#16161E] sm:bg-transparent">
                 <div className="rounded-[12px] bg-none sm:bg-[#16161E] sm:p-[18px] sm:pb-[13px] text-center sm:text-left">
                   <div className="mx-auto sm:mx-0 flex h-[36px] w-[36px] items-center justify-center rounded-[12px] bg-[#1A2135] sm:h-[45px] sm:w-[45px]">
                     <Image src="/images/tv.svg" alt="" width={22} height={22} />
@@ -222,7 +234,7 @@ export default async function DashboardPage() {
               </div>
             </section>
 
-            <section className="mt-[30px] sm:mt-[50px]">
+            <section className="mt-[20px] sm:mt-[50px]">
               <div className="flex items-center justify-between">
                 <h2 className="text-[16px] sm:text-[18px] font-medium text-white">Recent Transactions</h2>
                 <Link href="#" className="text-[13px] sm:text-[14px] font-medium text-white hover:text-white/70">
@@ -242,7 +254,7 @@ export default async function DashboardPage() {
                     return (
                       <div
                         key={`${t.kind}-${t.id}`}
-                        className="rounded-[12px] border border-[#2B2A3A] bg-[#16161E] px-4 py-3"
+                        className="rounded-[12px] border border-[#2B2A3A] bg-[#16161E] px-3 py-2"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
@@ -252,7 +264,7 @@ export default async function DashboardPage() {
                             <div>
                               <p className="text-[14px] font-semibold text-white">{title}</p>
                               <p className="text-[11px] text-[#A1A5AF]">
-                                {(t.reference ?? "-").slice(0, 12)} · {formatTxnDate(t.created_at)}
+                                {mobileReference(t.kind, t.reference)} · {formatTxnDate(t.created_at)}
                               </p>
                             </div>
                           </div>

@@ -13,6 +13,8 @@ type NavItem = {
 
 const BRAND_BLUE = "#3B82F6";
 
+const HIDE_ON_PATH_PREFIXES = ["/login", "/signup", "/forgot-password"];
+
 function isActivePath(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
   if (href === "/") return pathname === "/";
@@ -21,6 +23,10 @@ function isActivePath(pathname: string, href: string) {
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+
+  if (HIDE_ON_PATH_PREFIXES.some((p) => pathname.startsWith(p))) {
+    return null;
+  }
 
   const items: NavItem[] = [
     {
@@ -59,12 +65,12 @@ export default function MobileBottomNav() {
                   href={it.href}
                   className="flex flex-col items-center justify-center gap-1 py-1"
                 >
-                  <div className="relative h-[22px] w-[22px]">
+                  <div className="relative h-[18px] w-[18px]">
                     <Image
                       src={it.iconSrc}
                       alt=""
                       fill
-                      sizes="20px"
+                      sizes="18px"
                       className="object-contain"
                       style={
                         active
