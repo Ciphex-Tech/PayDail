@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export default function PageHeader({
@@ -15,7 +16,34 @@ export default function PageHeader({
   email: string;
 }) {
   const [hasUnread, setHasUnread] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
   const mountedRef = useRef(false);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    setIsNavigating(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    function onDocumentClick(e: MouseEvent) {
+      const target = e.target as HTMLElement | null;
+      const anchor = target?.closest?.("a") as HTMLAnchorElement | null;
+      if (!anchor) return;
+
+      const hrefAttr = anchor.getAttribute("href") || "";
+      if (!hrefAttr) return;
+      if (hrefAttr.startsWith("#")) return;
+      if (hrefAttr.startsWith("http://") || hrefAttr.startsWith("https://")) return;
+      if (anchor.target && anchor.target !== "_self") return;
+
+      setIsNavigating(true);
+    }
+
+    document.addEventListener("click", onDocumentClick, true);
+    return () => {
+      document.removeEventListener("click", onDocumentClick, true);
+    };
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -72,7 +100,7 @@ export default function PageHeader({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between border-b border-[#2E2E3A] px-4 py-2 sm:px-[36px] sm:py-[15px] bg-[#16161E]">
+    <header className="sticky top-0 z-40 relative flex min-h-[64px] items-center justify-between border-b border-[#2E2E3A] px-4 py-2 sm:px-[36px] sm:py-[15px] bg-[#16161E]">
       <div className="flex items-center gap-3">
         <div className="md:hidden">
           <Image src="/images/logo.svg" alt="PayDail" width={115} height={26} />
@@ -102,6 +130,8 @@ export default function PageHeader({
           </div>
         </div>
       </div>
+
+      {isNavigating ? <div className="paydail-toploader" /> : null}
     </header>
   );
 }

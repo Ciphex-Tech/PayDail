@@ -24,3 +24,57 @@ body {
   color: var(--foreground);
   font-family: "Inter";
 }
+
+ /* html {
+   scrollbar-width: 3px !important;
+   scrollbar-color: rgba(255, 255, 255, 0.22) rgba(255, 255, 255, 0.06) !important;
+ } */
+
+ /* Custom Scrollbar */
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 2px;   /* vertical scrollbar */
+  height: 2px;  /* horizontal scrollbar */
+}
+
+::-webkit-scrollbar-track {
+  background: #111111;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ffffff;
+  border-radius: 5px;
+}
+
+ @keyframes paydail-toploader-indeterminate {
+   0% {
+     transform: translateX(-100%);
+   }
+   100% {
+     transform: translateX(250%);
+   }
+ }
+
+ .paydail-toploader {
+   position: absolute;
+   left: 0;
+   right: 0;
+   bottom: 0;
+   height: 3px;
+   overflow: hidden;
+   background: rgba(255, 255, 255, 0.12);
+   z-index: 50;
+   pointer-events: none;
+ }
+
+ .paydail-toploader::before {
+   content: "";
+   position: absolute;
+   left: 0;
+   top: 0;
+   bottom: 0;
+   width: 35%;
+   background: linear-gradient(90deg, rgba(30, 123, 255, 0) 0%, rgba(30, 123, 255, 1) 50%, rgba(30, 123, 255, 0) 100%);
+   animation: paydail-toploader-indeterminate 900ms ease-in-out infinite;
+ }

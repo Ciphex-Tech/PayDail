@@ -137,6 +137,16 @@ export default async function DashboardPage() {
     return "bg-white/10 text-white/60";
   };
 
+  const shortReference = (kind: "deposit" | "withdrawal", reference: string | null) => {
+    const ref = (reference ?? "").trim();
+    if (!ref) return "-";
+    if (kind !== "withdrawal") return ref;
+
+    if (ref.length <= 8) return ref;
+    const tail = ref.slice(-3);
+    return `WD...${tail}`;
+  };
+
   return (
     <div className="min-h-screen w-full bg-[#0B0A0F] text-white">
       <LoginSuccessToast />
@@ -204,9 +214,9 @@ export default async function DashboardPage() {
               </div>
             </section>
 
-            <section className="mt-[50px]">
+            <section className="mt-[30px] sm:mt-[50px]">
               <div className="flex items-center justify-between">
-                <h2 className="test-[16px] sm:text-[18px] font-medium text-white">Recent Transactions</h2>
+                <h2 className="text-[16px] sm:text-[18px] font-medium text-white">Recent Transactions</h2>
                 <Link href="#" className="text-[13px] sm:text-[14px] font-medium text-white hover:text-white/70">
                   View all
                 </Link>
@@ -227,7 +237,7 @@ export default async function DashboardPage() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
-                            <div className={`flex items-center justify-center}`}>
+                            <div className="flex items-center justify-center">
                               <Image src={iconSrc} width={30} height={30} alt="" />
                             </div>
                             <div>
@@ -293,7 +303,7 @@ export default async function DashboardPage() {
                           alt=""
                         />
                       </div>
-                      <span>{t.reference ?? "-"}</span>
+                      <span>{shortReference(t.kind, t.reference)}</span>
                     </div>
                     <div className="font-medium text-[14px]">
                       {t.kind === "deposit" ? "Deposit" : "Withdrawal"}

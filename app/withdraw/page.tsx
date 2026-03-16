@@ -49,10 +49,10 @@ export default async function WithdrawPage() {
       <div className="flex min-h-screen">
         <Sidebar active="withdraw" />
 
-        <main className="flex-1 flex h-screen flex-col overflow-hidden">
+        <main className="flex-1 flex h-screen flex-col">
           <PageHeader title="Withdraw" fullName={fullName} email={email} />
 
-          <div className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="flex-1 overflow-y-auto px-6 py-6 overflow-hidden overflow-x-hidden w-[100%] max-w-[1300px] mx-auto">
             <WithdrawContent
               nairaBalance={nairaBalance}
               initialWithdrawals={withdrawals ?? []}

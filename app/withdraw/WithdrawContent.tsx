@@ -330,7 +330,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+    <div className="grid gap-6 grid-cols-1 lg:grid-cols-[1fr_1.4fr]">
       {/* ── Form ── */}
       <div className="rounded-[12px] border border-[#2D2A3F] bg-[#16161E] p-6">
         <h2 className="text-[18px] font-semibold text-white">Withdraw Naira</h2>
@@ -480,9 +480,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
             {submitting ? "Submitting…" : "Withdraw"}
           </button>
 
-          <p className="text-center text-[11px] text-[#A1A5AF]">
-            Min ₦1,000 · Max 3 withdrawals per 24 hrs · Funds held until transfer completes
-          </p>
+          
         </form>
       </div>
 
