@@ -20,7 +20,7 @@ export default function TotalBalanceCard({
   const formattedPct = `${Number.isFinite(percentIncrease) ? percentIncrease.toFixed(1) : "0.0"}%`;
 
   return (
-    <section className="rounded-[14px] bg-[#3570D4] pl-[28px] pr-[18px] pt-[28px] pb-[30px]">
+    <section className="rounded-[14px] bg-[#3570D4] p-[15px] py-[20px] sm:pl-[28px] sm:pr-[18px] sm:pt-[28px] sm:pb-[30px]">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -54,7 +54,7 @@ export default function TotalBalanceCard({
         </div>
       </div>
 
-      <div className="mt-6 flex gap-[30px]">
+      <div className="mt-6 flex gap-[15px]">
         <button
           type="button"
           onClick={() => router.push("/deposit")}

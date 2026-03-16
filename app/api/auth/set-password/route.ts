@@ -77,6 +77,33 @@ export async function POST(req: Request) {
         );
       }
 
+      const meta = (data.user.user_metadata ?? {}) as Record<string, unknown>;
+      const firstName = typeof meta.first_name === "string" ? meta.first_name.trim() : "";
+      const lastName = typeof meta.last_name === "string" ? meta.last_name.trim() : "";
+      const phone = typeof meta.phone === "string" ? meta.phone.trim() : "";
+
+      const { error: upsertError } = await admin
+        .from("users_info")
+        .upsert(
+          {
+            id: data.user.id,
+            first_name: firstName || null,
+            last_name: lastName || null,
+            phone: phone || null,
+          } as any,
+          { onConflict: "id" },
+        );
+
+      if (upsertError) {
+        console.error("/api/auth/set-password users_info upsert error", {
+          message: upsertError.message,
+        });
+        return NextResponse.json(
+          { ok: false, error: "failed to persist user profile" },
+          { status: 500 },
+        );
+      }
+
       return NextResponse.json({ ok: true });
     }
 
@@ -88,6 +115,34 @@ export async function POST(req: Request) {
         status: error.status,
       });
       return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+    }
+
+    const admin = createSupabaseAdminClient();
+    const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+    const firstName = typeof meta.first_name === "string" ? meta.first_name.trim() : "";
+    const lastName = typeof meta.last_name === "string" ? meta.last_name.trim() : "";
+    const phone = typeof meta.phone === "string" ? meta.phone.trim() : "";
+
+    const { error: upsertError } = await admin
+      .from("users_info")
+      .upsert(
+        {
+          id: user.id,
+          first_name: firstName || null,
+          last_name: lastName || null,
+          phone: phone || null,
+        } as any,
+        { onConflict: "id" },
+      );
+
+    if (upsertError) {
+      console.error("/api/auth/set-password users_info upsert error", {
+        message: upsertError.message,
+      });
+      return NextResponse.json(
+        { ok: false, error: "failed to persist user profile" },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({ ok: true });

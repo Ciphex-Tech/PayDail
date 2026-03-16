@@ -131,10 +131,18 @@ export default async function DashboardPage() {
     if (v === "failed" || v === "reversed") {
       return "bg-red-500/10 text-red-400";
     }
-    if (v === "review_required" || v === "approved") {
+    if (v === "pending" || v === "review_required" || v === "approved" || v === "processing") {
       return "bg-yellow-500/10 text-yellow-300";
     }
     return "bg-white/10 text-white/60";
+  };
+
+  const displayStatus = (kind: "deposit" | "withdrawal", status: string) => {
+    const v = String(status || "").toLowerCase();
+    if (kind === "withdrawal") {
+      if (v === "review_required" || v === "approved" || v === "processing") return "pending";
+    }
+    return v || "pending";
   };
 
   const shortReference = (kind: "deposit" | "withdrawal", reference: string | null) => {
@@ -158,7 +166,7 @@ export default async function DashboardPage() {
           <PageHeader title="Dashboard" fullName={fullName} email={email} />
 
           <div className="flex-1 overflow-y-auto px-6 py-6 pb-[80px] overflow-x-hidden w-[100%] max-w-[1300px] mx-auto">
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
               <TotalBalanceCard
                 nairaBalance={Number.isFinite(nairaBalance) ? nairaBalance : 0}
                 percentIncrease={Number.isFinite(pctIncrease) ? pctIncrease : 0}
@@ -226,9 +234,10 @@ export default async function DashboardPage() {
                 <div className="space-y-3">
                   {txns.map((t) => {
                     const title = t.kind === "deposit" ? "Deposit" : "Withdrawal";
-                    const iconSrc = t.kind === "deposit" ? "/images/deposit.svg" : "/images/widthdrawal-notifications.svg";
+                    const iconSrc = t.kind === "deposit" ? "/images/deposit-notifications.svg" : "/images/widthdrawal-notifications.svg";
                     const amountPrefix = t.kind === "deposit" ? "+" : "-";
                     const rightColor = t.kind === "deposit" ? "text-[#00FF44]" : "text-white";
+                    const shownStatus = displayStatus(t.kind, t.status);
 
                     return (
                       <div
@@ -254,10 +263,10 @@ export default async function DashboardPage() {
                             </p>
                             <span
                               className={`mt-1 inline-flex px-3 py-1 text-[10px] font-semibold capitalize ${statusPill(
-                                t.status,
+                                shownStatus,
                               )}`}
                             >
-                              {t.status}
+                              {shownStatus}
                             </span>
                           </div>
                         </div>
@@ -285,46 +294,49 @@ export default async function DashboardPage() {
                   <div>Date</div>
                 </div>
                 <div className="h-px bg-white/10" />
-                {txns.map((t) => (
-                  <div
-                    key={`${t.kind}-${t.id}`}
-                    className="grid grid-cols-5 gap-3 px-5 py-4 text-[12px] border-b-1 border-[#2E2E3A] items-center"
-                  >
-                    <div className="font-semibold text-[14px] gap-[10px] flex items-center">
-                      <div
-                        className={`w-[30px] h-[30px] rounded-[12px] items-center justify-center flex ${
-                          t.kind === "deposit" ? "bg-[#00A82D1A]" : "bg-[#1E7BFF1A]"
-                        }`}
-                      >
-                        <Image
-                          src={t.kind === "deposit" ? "/images/deposit.svg" : "/images/withdraw.svg"}
-                          width={12}
-                          height={12}
-                          alt=""
-                        />
+                {txns.map((t) => {
+                  const shownStatus = displayStatus(t.kind, t.status);
+                  return (
+                    <div
+                      key={`${t.kind}-${t.id}`}
+                      className="grid grid-cols-5 gap-3 px-5 py-4 text-[12px] border-b-1 border-[#2E2E3A] items-center"
+                    >
+                      <div className="font-semibold text-[14px] gap-[10px] flex items-center">
+                        <div
+                          className={`w-[30px] h-[30px] rounded-[12px] items-center justify-center flex ${
+                            t.kind === "deposit" ? "bg-[#00A82D1A]" : "bg-[#1E7BFF1A]"
+                          }`}
+                        >
+                          <Image
+                            src={t.kind === "deposit" ? "/images/deposit.svg" : "/images/withdraw.svg"}
+                            width={12}
+                            height={12}
+                            alt=""
+                          />
+                        </div>
+                        <span>{shortReference(t.kind, t.reference)}</span>
                       </div>
-                      <span>{shortReference(t.kind, t.reference)}</span>
+                      <div className="font-medium text-[14px]">
+                        {t.kind === "deposit" ? "Deposit" : "Withdrawal"}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[14px]">
+                          {t.kind === "deposit" ? "+" : "-"}₦{Number(t.amountNgn).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <span
+                          className={`inline-flex rounded-[12px] px-3 py-1 text-[12px] font-semibold capitalize ${statusPill(
+                            shownStatus,
+                          )}`}
+                        >
+                          {shownStatus}
+                        </span>
+                      </div>
+                      <div className="text-[#9AA2AC] text-[14px]">{formatTxnDate(t.created_at)}</div>
                     </div>
-                    <div className="font-medium text-[14px]">
-                      {t.kind === "deposit" ? "Deposit" : "Withdrawal"}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-[14px]">
-                        {t.kind === "deposit" ? "+" : "-"}₦{Number(t.amountNgn).toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <span
-                        className={`inline-flex rounded-[12px] px-3 py-1 text-[12px] font-semibold capitalize ${statusPill(
-                          t.status,
-                        )}`}
-                      >
-                        {t.status}
-                      </span>
-                    </div>
-                    <div className="text-[#9AA2AC] text-[14px]">{formatTxnDate(t.created_at)}</div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {txns.length === 0 && (
                   <div className="px-5 py-6 text-[13px] text-[#A1A5AF]">No recent transactions</div>

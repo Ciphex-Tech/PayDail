@@ -295,7 +295,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
       const isReview = json.withdrawal?.status === "review_required";
       setSubmitSuccess(
         isReview
-          ? "Withdrawal submitted. It requires admin review because it exceeds ₦100,000. You will be notified once approved."
+          ? "Withdrawal submitted successfully! It will be processed shortly."
           : "Withdrawal submitted successfully! It will be processed shortly.",
       );
 
