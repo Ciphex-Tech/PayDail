@@ -157,7 +157,7 @@ export default async function DashboardPage() {
         <main className="flex-1 flex h-screen flex-col overflow-hidden">
           <PageHeader title="Dashboard" fullName={fullName} email={email} />
 
-          <div className="flex-1 overflow-y-auto px-6 py-6 pb-[100px] overflow-x-hidden w-[100%] max-w-[1300px] mx-auto">
+          <div className="flex-1 overflow-y-auto px-6 py-6 pb-[80px] overflow-x-hidden w-[100%] max-w-[1300px] mx-auto">
             <div className="grid gap-6 lg:grid-cols-2">
               <TotalBalanceCard
                 nairaBalance={Number.isFinite(nairaBalance) ? nairaBalance : 0}
