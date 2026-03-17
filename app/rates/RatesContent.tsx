@@ -758,7 +758,7 @@ export default function RatesContent({ initialMarkets, initialUpdatedAtIso, init
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[14px] sm:text-[18px] font-medium">You will receive</p>
-                <p className="mt-3 text-[24px] tsm:ext-[36px] font-bold leading-none">{formatNgn(receiveNgn)}</p>
+                <p className="mt-3 text-[20px] sm:text-[36px] font-bold leading-none">{formatNgn(receiveNgn)}</p>
               </div>
 
               <button
@@ -793,7 +793,7 @@ export default function RatesContent({ initialMarkets, initialUpdatedAtIso, init
 
             <div className="mt-3 sm:mt-8">
               <p className="text-[14px] sm:text-[18px]">For</p>
-              <p className="mt-2 text-[24px] sm:text-[36px] font-bold leading-none">
+              <p className="mt-2 text-[20px] sm:text-[36px] font-bold leading-none">
                 {coinAmount.toLocaleString("en-US", { maximumFractionDigits: 8 })} {calcSymbol}
               </p>
             </div>
