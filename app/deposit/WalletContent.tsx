@@ -304,7 +304,7 @@ export default function WalletContent({ initialAddresses, initialDeposits }: Pro
                   <div className="mx-auto h-[4px] w-[52px] rounded-full bg-white/20" />
                   <h3 className="mt-4 text-[18px] font-semibold">Select Network</h3>
 
-                  <div className="mt-4 rounded-[12px] border border-[#2E2E3A] bg-[#16161E] p-4 text-[13px] text-[#9597A3]">
+                  <div className="mt-4 rounded-[12px] border border-[#2E2E3A] bg-[#16161E] p-3 text-[12px] text-[#9597A3]">
                     <span className="font-semibold text-white">Important:</span> Select the correct network to avoid loss of funds.
                   </div>
 
