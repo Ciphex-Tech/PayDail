@@ -84,6 +84,7 @@ export default function WalletContent({ initialAddresses, initialDeposits }: Pro
   const [mobileStep, setMobileStep] = useState<"select" | "wallet">("select");
   const [mobileNetworkOpen, setMobileNetworkOpen] = useState(false);
   const [mobileSelectedAsset, setMobileSelectedAsset] = useState<Asset>("USDT");
+  const [mobileAutoGenerating, setMobileAutoGenerating] = useState(false);
 
   const deposits = initialDeposits ?? [];
 
@@ -322,7 +323,12 @@ export default function WalletContent({ initialAddresses, initialDeposits }: Pro
                           const maybe = getColumn(mobileSelectedAsset, n.network);
                           const exists = maybe ? (addresses[maybe] ?? null) : null;
                           if (!exists) {
-                            await generateFor(mobileSelectedAsset, n.network);
+                            setMobileAutoGenerating(true);
+                            try {
+                              await generateFor(mobileSelectedAsset, n.network);
+                            } finally {
+                              setMobileAutoGenerating(false);
+                            }
                           }
                         }}
                         className="flex items-center justify-between rounded-[14px] border border-[#2E2E3A] bg-[#16161E] px-4 py-4 text-left"
@@ -363,16 +369,20 @@ export default function WalletContent({ initialAddresses, initialDeposits }: Pro
             <div className="mt-6 rounded-[10px] border border-[#2E2E3A] bg-[#16161E] p-5">
               {!mobileAddress ? (
                 <div>
-                  <button
-                    type="button"
-                    onClick={generate}
-                    disabled={isGenerating}
-                    className={`w-full rounded-[12px] bg-[#3B82F6] py-3 text-[14px] font-medium ${
-                      isGenerating ? "opacity-60" : ""
-                    }`}
-                  >
-                    {isGenerating ? "Generating..." : "Generate wallet"}
-                  </button>
+                  {mobileAutoGenerating || isGenerating ? (
+                    <div className="flex flex-col items-center justify-center gap-3 py-6">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+                      <p className="text-[13px] font-medium text-white/90">Generating wallet...</p>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={generate}
+                      className="w-full rounded-[12px] bg-[#3B82F6] py-3 text-[14px] font-medium"
+                    >
+                      Generate wallet
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div>
