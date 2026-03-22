@@ -360,7 +360,7 @@ export default function WalletContent({ initialAddresses, initialDeposits }: Pro
               <h2 className="text-[16px] font-semibold">{asset}</h2>
             </div>
 
-            <div className="mt-6 rounded-[14px] border border-[#2E2E3A] bg-[#16161E] p-5">
+            <div className="mt-6 rounded-[10px] border border-[#2E2E3A] bg-[#16161E] p-5">
               {!mobileAddress ? (
                 <div>
                   <button
@@ -391,7 +391,7 @@ export default function WalletContent({ initialAddresses, initialDeposits }: Pro
                   </div>
 
                   <p className="mt-4 text-[14px] text-white font-medium">Wallet Address</p>
-                  <div className="mt-2 flex items-center justify-between gap-3 rounded-[12px] border border-[#2E2E3A] bg-[#201F2D] px-3 py-3">
+                  <div className="mt-2 flex items-center justify-between gap-3 rounded-[12px] border border-[#2E2E3A] bg-[#201F2D] px-3 py-1">
                     <p className="text-[12px] text-white break-all pr-2">{mobileAddress}</p>
                     <button
                       type="button"
@@ -403,7 +403,7 @@ export default function WalletContent({ initialAddresses, initialDeposits }: Pro
                     </button>
                   </div>
 
-                  <div className="mt-4 rounded-[12px] bg-[#00A82D1A] border border-[#00A82D33] p-4 text-[13px] text-[#00A82D]">
+                  <div className="mt-4 rounded-[12px] bg-[#00A82D1A] border border-[#00A82D33] p-3 text-[12px] text-[#00A82D]">
                     {asset} deposits will automatically be converted to Naira at the current exchange rate.
                   </div>
 
