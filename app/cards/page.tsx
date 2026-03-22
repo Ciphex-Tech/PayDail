@@ -35,7 +35,7 @@ export default async function CardsPage() {
         <main className="flex-1 flex h-screen flex-col overflow-hidden">
           <PageHeader title="Cards" fullName={fullName} email={email} />
 
-          <div className="flex-1 overflow-y-auto px-6 py-6 overflow-x-hidden w-[100%] max-w-[1300px] mx-auto">
+          <div className="flex-1 overflow-y-auto px-6 py-6 overflow-x-hidden w-[100%] mx-auto">
             <section className="rounded-[12px] bg-[#16161E] border border-[#2D2A3F] p-6">
               <h2 className="text-[18px] font-medium">Cards</h2>
               <p className="mt-2 text-[14px] text-white/60">Coming soon</p>

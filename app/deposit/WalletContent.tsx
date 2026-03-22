@@ -81,6 +81,10 @@ export default function WalletContent({ initialAddresses, initialDeposits }: Pro
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const [mobileStep, setMobileStep] = useState<"select" | "wallet">("select");
+  const [mobileNetworkOpen, setMobileNetworkOpen] = useState(false);
+  const [mobileSelectedAsset, setMobileSelectedAsset] = useState<Asset>("USDT");
+
   const deposits = initialDeposits ?? [];
 
   const [assetOpen, setAssetOpen] = useState(false);
@@ -170,48 +174,279 @@ export default function WalletContent({ initialAddresses, initialDeposits }: Pro
     }
   }
 
-  async function generate() {
+  async function onCopyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setToastVariant("success");
+      setToastMessage("Address copied");
+      setToastOpen(true);
+    } catch {
+      setToastVariant("error");
+      setToastMessage("Couldn't copy address");
+      setToastOpen(true);
+    }
+  }
+
+  async function onShare(text: string) {
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        await navigator.share({ text });
+        return;
+      }
+    } catch {
+      // ignore and fallback to copy
+    }
+
+    await onCopyText(text);
+  }
+
+  async function generateFor(nextAsset: Asset, nextNetwork: Network) {
+    const nextCol = getColumn(nextAsset, nextNetwork);
+    const existing = nextCol ? (addresses[nextCol] ?? null) : null;
+    if (existing) return existing;
+
     setIsGenerating(true);
     try {
       const res = await fetch("/api/wallet/generate-address", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ asset, network }),
+        body: JSON.stringify({ asset: nextAsset, network: nextNetwork }),
       });
 
       const json = (await res.json()) as { address?: string; error?: string };
-      if (!res.ok || !json.address) {
+      if (!res.ok || !json.address || !nextCol) {
         setToastVariant("error");
         setToastMessage(json.error || "Failed to generate wallet");
         setToastOpen(true);
-        return;
+        return null;
       }
 
-      setAddresses((prev) => ({ ...prev, [col]: json.address }));
+      setAddresses((prev) => ({ ...prev, [nextCol]: json.address }));
       setToastVariant("success");
       setToastMessage("Wallet generated");
       setToastOpen(true);
+      return json.address;
     } finally {
       setIsGenerating(false);
     }
   }
 
+  async function generate() {
+    await generateFor(asset, network);
+  }
+
+  const mobileSupportedNetworks = useMemo(() => {
+    const found = ASSETS.find((a) => a.asset === mobileSelectedAsset);
+    return found?.networks ?? [];
+  }, [mobileSelectedAsset]);
+
+  const mobileCol = useMemo(() => getColumn(asset, network), [asset, network]);
+  const mobileAddress = mobileCol ? (addresses[mobileCol] ?? null) : null;
+
   return (
     <div className="px-6 py-6">
       <TopToast open={toastOpen} message={toastMessage} variant={toastVariant} onClose={() => setToastOpen(false)} />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[18px] font-medium">Deposit Crypto</h2>
-          <p className="mt-1 text-[12px] font-semibold text-[#9597A3]">Send crypto to your wallet address to deposit funds</p>
-        </div>
+      <div className="lg:hidden">
+        {mobileStep === "select" ? (
+          <div>
+            <div className="flex items-center">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="inline-flex items-center gap-2 text-[14px] text-white/80"
+                aria-label="Back"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15 18l-6-6 6-6" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <h2 className="flex-1 text-center text-[18px] font-medium">Select Crypto</h2>
+              <div className="w-[18px]" />
+            </div>
+            <p className="mt-2 text-[12px] text-center font-semibold text-[#9597A3]">Choose the asset you want to deposit</p>
 
-        <RefreshButton onClick={refresh} isRefreshing={isRefreshing} />
+            <div className="mt-5 grid gap-3">
+              {ASSETS.map((a) => (
+                <button
+                  key={a.asset}
+                  type="button"
+                  onClick={() => {
+                    setMobileSelectedAsset(a.asset);
+                    setMobileNetworkOpen(true);
+                  }}
+                  className="flex items-center justify-between rounded-[14px] border border-[#2E2E3A] bg-[#16161E] px-3 py-3"
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="relative h-[20px] w-[20px] overflow-hidden rounded-full">
+                      <Image src={coinImageByAsset[a.asset]} alt="" fill sizes="20px" className="object-cover" />
+                    </span>
+                    <span className="text-[14px] font-semibold">{a.label}</span>
+                  </span>
+
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9 18l6-6-6-6" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+
+            {mobileNetworkOpen ? (
+              <div className="fixed inset-0 z-50">
+                <button
+                  type="button"
+                  className="absolute inset-0 bg-black/60"
+                  onClick={() => setMobileNetworkOpen(false)}
+                  aria-label="Close"
+                />
+
+                <div className="absolute bottom-0 left-0 right-0 rounded-t-[18px] border-t border-[#2E2E3A] bg-[#0B0A0F] px-5 pb-6 pt-4">
+                  <div className="mx-auto h-[4px] w-[52px] rounded-full bg-white/20" />
+                  <h3 className="mt-4 text-[18px] font-semibold">Select Network</h3>
+
+                  <div className="mt-4 rounded-[12px] border border-[#2E2E3A] bg-[#16161E] p-4 text-[13px] text-[#9597A3]">
+                    <span className="font-semibold text-white">Important:</span> Select the correct network to avoid loss of funds.
+                  </div>
+
+                  <div className="mt-4 grid gap-3">
+                    {mobileSupportedNetworks.map((n) => (
+                      <button
+                        key={n.network}
+                        type="button"
+                        onClick={async () => {
+                          setMobileNetworkOpen(false);
+                          setAsset(mobileSelectedAsset);
+                          setNetwork(n.network);
+                          setMobileStep("wallet");
+
+                          const maybe = getColumn(mobileSelectedAsset, n.network);
+                          const exists = maybe ? (addresses[maybe] ?? null) : null;
+                          if (!exists) {
+                            await generateFor(mobileSelectedAsset, n.network);
+                          }
+                        }}
+                        className="flex items-center justify-between rounded-[14px] border border-[#2E2E3A] bg-[#16161E] px-4 py-4 text-left"
+                      >
+                        <span className="text-[14px] font-medium">{n.label}</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M9 18l6-6-6-6" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setMobileStep("select")}
+                className="inline-flex items-center gap-2 text-[14px] text-white/80"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15 18l-6-6 6-6" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Back
+              </button>
+            </div>
+
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <span className="relative h-[22px] w-[22px] overflow-hidden rounded-full">
+                <Image src={coinImageByAsset[asset]} alt="" fill sizes="22px" className="object-cover" />
+              </span>
+              <h2 className="text-[16px] font-semibold">{asset}</h2>
+            </div>
+
+            <div className="mt-6 rounded-[14px] border border-[#2E2E3A] bg-[#16161E] p-5">
+              {!mobileAddress ? (
+                <div>
+                  <button
+                    type="button"
+                    onClick={generate}
+                    disabled={isGenerating}
+                    className={`w-full rounded-[12px] bg-[#3B82F6] py-3 text-[14px] font-medium ${
+                      isGenerating ? "opacity-60" : ""
+                    }`}
+                  >
+                    {isGenerating ? "Generating..." : "Generate wallet"}
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex justify-center">
+                    <div className="bg-white p-2 rounded-[10px]">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+                          mobileAddress,
+                        )}`}
+                        alt=""
+                        width={150}
+                        height={150}
+                        className="block"
+                      />
+                    </div>
+                  </div>
+
+                  <p className="mt-4 text-[14px] text-white font-medium">Wallet Address</p>
+                  <div className="mt-2 flex items-center justify-between gap-3 rounded-[12px] border border-[#2E2E3A] bg-[#201F2D] px-3 py-3">
+                    <p className="text-[12px] text-white break-all pr-2">{mobileAddress}</p>
+                    <button
+                      type="button"
+                      onClick={() => onCopyText(mobileAddress)}
+                      className="shrink-0 rounded-[10px] p-2 hover:bg-white/5"
+                      aria-label="Copy address"
+                    >
+                      <Image src="/images/copy.svg" alt="" width={15} height={15} />
+                    </button>
+                  </div>
+
+                  <div className="mt-4 rounded-[12px] bg-[#00A82D1A] border border-[#00A82D33] p-4 text-[13px] text-[#00A82D]">
+                    {asset} deposits will automatically be converted to Naira at the current exchange rate.
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => onCopyText(mobileAddress)}
+                      className="rounded-[12px] bg-[#3B82F6] py-3 text-[14px] font-semibold"
+                    >
+                      Copy Address
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onShare(mobileAddress)}
+                      className="rounded-[12px] border border-[#2E2E3A] bg-[#16161E] py-3 text-[14px] font-semibold"
+                    >
+                      Share
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 rounded-[12px] bg-[#2E2E3A] border border-[#2E2E3A] p-3 text-[12px] text-white/90 font-normal">
+                <span className="font-medium">Important:</span> Only send {asset} on the {networkLabel} network to this address.
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <section className="rounded-[12px] bg-[#16161E] border border-[#2E2E3A] p-5">
-          <h3 className="text-[16px] font-medium">Select crypto asset</h3>
+      <div className="hidden lg:block">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-[18px] font-medium">Deposit Crypto</h2>
+            <p className="mt-1 text-[12px] font-semibold text-[#9597A3]">Send crypto to your wallet address to deposit funds</p>
+          </div>
+
+          <RefreshButton onClick={refresh} isRefreshing={isRefreshing} />
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-3">
+          <section className="rounded-[12px] bg-[#16161E] border border-[#2E2E3A] p-5">
+            <h3 className="text-[16px] font-medium">Select crypto asset</h3>
 
           <div className="mt-4">
             <p className="text-[14px] text-[#FFFFFF]">Cryptocurrency</p>
@@ -460,6 +695,7 @@ export default function WalletContent({ initialAddresses, initialDeposits }: Pro
           </div>
         </div>
       </section>
+      </div>
     </div>
   );
 }

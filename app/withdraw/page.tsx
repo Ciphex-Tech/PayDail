@@ -52,7 +52,7 @@ export default async function WithdrawPage() {
         <main className="flex-1 flex h-screen flex-col">
           <PageHeader title="Withdraw" fullName={fullName} email={email} />
 
-          <div className="flex-1 overflow-y-auto px-6 py-6 overflow-hidden overflow-x-hidden w-[100%] max-w-[1300px] mx-auto">
+          <div className="flex-1 overflow-y-auto px-6 py-6 overflow-hidden overflow-x-hidden w-[100%] mx-auto">
             <WithdrawContent
               nairaBalance={nairaBalance}
               initialWithdrawals={withdrawals ?? []}

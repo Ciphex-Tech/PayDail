@@ -125,7 +125,7 @@ export default async function DashboardPage() {
 
   const statusPill = (s: string) => {
     const v = String(s || "").trim().toLowerCase();
-    if (v === "completed" || v === "success" || v === "successful") {
+    if (v === "completed" || v === "confirmed" || v === "success" || v === "successful") {
       return "bg-[#00A82D1A] text-[#00A82D]";
     }
     if (v === "failed" || v === "reversed") {
@@ -160,11 +160,10 @@ export default async function DashboardPage() {
   const shortReference = (kind: "deposit" | "withdrawal", reference: string | null) => {
     const ref = (reference ?? "").trim();
     if (!ref) return "-";
-    if (kind !== "withdrawal") return ref;
-
+    const prefix = kind === "withdrawal" ? "WD" : "DP";
     if (ref.length <= 8) return ref;
     const tail = ref.slice(-3);
-    return `WD...${tail}`;
+    return `${prefix}...${tail}`;
   };
 
   return (
@@ -177,7 +176,7 @@ export default async function DashboardPage() {
         <main className="flex-1 flex h-screen flex-col overflow-hidden">
           <PageHeader title="Dashboard" fullName={fullName} email={email} />
 
-          <div className="flex-1 overflow-y-auto px-6 py-6 pb-[80px] overflow-x-hidden w-[100%] max-w-[1300px] mx-auto">
+          <div className="flex-1 overflow-y-auto px-6 py-6 pb-[80px] overflow-x-hidden w-[100%] mx-auto">
             <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
               <TotalBalanceCard
                 nairaBalance={Number.isFinite(nairaBalance) ? nairaBalance : 0}
@@ -315,7 +314,7 @@ export default async function DashboardPage() {
                     >
                       <div className="font-semibold text-[14px] gap-[10px] flex items-center">
                         <div
-                          className={`w-[30px] h-[30px] rounded-[12px] items-center justify-center flex ${
+                          className={`w-[30px] h-[30px] shrink-0 rounded-[12px] items-center justify-center flex ${
                             t.kind === "deposit" ? "bg-[#00A82D1A]" : "bg-[#1E7BFF1A]"
                           }`}
                         >
