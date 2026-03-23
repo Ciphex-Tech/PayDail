@@ -359,9 +359,9 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
   return (
     <div className="grid gap-6 grid-cols-1 lg:grid-cols-[1fr_1.4fr]">
       {/* ── Form ── */}
-      <div className="rounded-[12px] border border-[#2D2A3F] bg-[#16161E] p-6">
+      <div className="rounded-[12px] border border-[#2D2A3F] bg-[#16161E] p-3.5 md:py-6 md:px-6">
         <div className="flex items-center gap-2 mb-3">
-          <svg width="23" height="23" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="18" height="18" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M10.8637 0L0 5.23069V7.95197H22.5V5.21625L10.8637 0ZM21 6.45197H1.5V6.17325L10.8863 1.65394L21 6.18769V6.45197ZM1.5 18.452H21V19.952H1.5V18.452ZM0 21.077H22.5V22.577H0V21.077ZM1.875 9.45197H3.375V16.952H1.875V9.45197ZM19.125 9.45197H20.625V16.952H19.125V9.45197ZM14.625 9.45197H16.125V16.952H14.625V9.45197ZM6.375 9.45197H7.875V16.952H6.375V9.45197ZM10.5 9.45197H12V16.952H10.5V9.45197Z"
               fill="white"

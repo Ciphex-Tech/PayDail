@@ -53,7 +53,7 @@ export default async function BankTransferWithdrawPage() {
         <main className="flex-1 flex h-screen flex-col">
           <PageHeader title="Withdraw" fullName={fullName} email={email} />
 
-          <div className="flex-1 overflow-y-auto px-6 py-6 overflow-hidden overflow-x-hidden w-[100%] mx-auto">
+          <div className="flex-1 overflow-y-auto pb-[100px] p-6 md:px-6 md:py-6 overflow-hidden overflow-x-hidden w-[100%] mx-auto">
             <div className="mb-[20px] md:mb-[40px] flex items-center gap-2">
               <Image src="/images/bank_transfer.svg" alt="" width={16} height={16} />
               <h1 className="text-[18px] font-semibold text-white">Bank Transfer</h1>
