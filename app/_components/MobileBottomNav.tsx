@@ -13,7 +13,7 @@ type NavItem = {
 
 const BRAND_BLUE = "#3B82F6";
 
-const HIDE_ON_PATH_PREFIXES = ["/login", "/signup", "/forgot-password", "/deposit"];
+const HIDE_ON_PATH_PREFIXES = ["/login", "/signup", "/forgot-password", "/deposit", "/withdraw"];
 
 function isActivePath(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/dashboard/Sidebar";
 import PageHeader from "@/app/dashboard/PageHeader";
+import MobileBackHeader from "@/app/_components/MobileBackHeader";
 
 export default async function PaydailIdWithdrawPage() {
   const supabase = await createSupabaseServerClient();
@@ -32,6 +33,7 @@ export default async function PaydailIdWithdrawPage() {
 
         <main className="flex-1 flex h-screen flex-col overflow-hidden">
           <PageHeader title="Withdraw" fullName={fullName} email={email} />
+          <MobileBackHeader title="" />
 
           <div className="flex-1 overflow-y-auto px-6 py-6">
             <div className="max-w-[520px] rounded-[16px] border border-[#2E2E3A] bg-[#16161E] p-6">

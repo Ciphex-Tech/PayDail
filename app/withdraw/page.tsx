@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Sidebar from "@/app/dashboard/Sidebar";
 import PageHeader from "@/app/dashboard/PageHeader";
+import MobileBackHeader from "@/app/_components/MobileBackHeader";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -45,10 +46,11 @@ export default async function WithdrawPage() {
 
         <main className="flex-1 flex h-screen flex-col">
           <PageHeader title="Withdraw" fullName={fullName} email={email} />
+          <MobileBackHeader title="Withdraw" />
 
-          <div className="flex-1 overflow-y-auto px-6 py-6 overflow-hidden overflow-x-hidden w-[100%] mx-auto">
+          <div className="flex-1 overflow-y-auto px-6 py-6 pt-4 md:pt-6 overflow-hidden overflow-x-hidden w-[100%] mx-auto">
             <div className="max-w-[520px]">
-              <h1 className="text-[20px] font-semibold">Withdrawal</h1>
+              <h1 className="test-[18px] md:text-[20px] font-semibold">Withdrawal</h1>
               <p className="mt-1 text-[13px] font-semibold text-[#9597A3]">
                 Withdraw funds through your preferred medium
               </p>
