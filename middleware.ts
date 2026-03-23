@@ -53,7 +53,7 @@ function buildCsp(nonce: string, req: NextRequest) {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' https://js.paystack.co https://js.stripe.com https://www.paypal.com`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    "img-src 'self' data: blob: https://api.qrserver.com",
     `connect-src ${connectSrc.join(" ")}`,
     "frame-src https://js.paystack.co https://js.stripe.com https://www.paypal.com https://checkout.paystack.com",
     "frame-ancestors 'none'",
