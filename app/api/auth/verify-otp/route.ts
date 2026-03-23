@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { assertIsNonEmptyString } from "@/lib/validators/auth";
 
@@ -24,6 +25,34 @@ export async function POST(req: Request) {
         status: error.status,
       });
       return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+    }
+
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData?.user ?? null;
+      if (user?.id) {
+        const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+        const paydailId = typeof meta.paydail_id === "string" ? meta.paydail_id.trim() : "";
+        const firstName = typeof meta.first_name === "string" ? meta.first_name.trim() : "";
+        const lastName = typeof meta.last_name === "string" ? meta.last_name.trim() : "";
+        const phone = typeof meta.phone === "string" ? meta.phone.trim() : "";
+
+        const admin = createSupabaseAdminClient();
+        await admin
+          .from("users_info")
+          .upsert(
+            {
+              id: user.id,
+              paydail_id: paydailId || null,
+              first_name: firstName || null,
+              last_name: lastName || null,
+              phone: phone || null,
+            } as any,
+            { onConflict: "id" },
+          );
+      }
+    } catch (e) {
+      console.error("/api/auth/verify-otp users_info upsert error", e);
     }
 
     return NextResponse.json({ ok: true });

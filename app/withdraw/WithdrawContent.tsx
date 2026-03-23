@@ -84,6 +84,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
   const [verifyError, setVerifyError] = useState("");
 
   const [amount, setAmount] = useState("");
+  const [narration, setNarration] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const inFlightRef = useRef(false);
   const [submitError, setSubmitError] = useState("");
@@ -110,7 +111,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
   const amountError = useMemo(() => {
     if (!amount) return "";
     if (!Number.isFinite(amountNum) || amountNum <= 0) return "Enter a valid amount";
-    if (amountNum < 1000) return "Minimum withdrawal is ₦1,000";
+    if (amountNum < 100) return "Minimum withdrawal is ₦100";
     if (amountNum > latestBalance) return `Insufficient balance (₦${latestBalance.toLocaleString()})`;
     return "";
   }, [amount, amountNum, latestBalance]);
@@ -120,7 +121,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
     selectedBank !== null &&
     verifyState === "verified" &&
     accountName.trim().length > 0 &&
-    amountNum >= 1000 &&
+    amountNum >= 100 &&
     amountNum <= latestBalance &&
     !amountError;
 
@@ -266,6 +267,29 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
     setSubmitError("");
     setSubmitSuccess("");
 
+    try {
+      const pinRes = await fetch("/api/pin/status", { method: "GET", cache: "no-store" });
+      const pinJson = (await pinRes.json()) as { ok?: boolean; has_pin?: boolean };
+      const hasPin = Boolean(pinRes.ok && pinJson?.ok && pinJson?.has_pin);
+      if (!hasPin) {
+        router.refresh();
+        window.setTimeout(() => {
+          window.dispatchEvent(new Event("paydail:open-pin-gate"));
+        }, 0);
+        setSubmitting(false);
+        inFlightRef.current = false;
+        return;
+      }
+    } catch {
+      router.refresh();
+      window.setTimeout(() => {
+        window.dispatchEvent(new Event("paydail:open-pin-gate"));
+      }, 0);
+      setSubmitting(false);
+      inFlightRef.current = false;
+      return;
+    }
+
     await refreshBalance();
 
     if (!canSubmit) {
@@ -278,11 +302,13 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          withdrawal_type: "bank_transfer",
           amount: amountNum,
           bank_code: selectedBank!.code,
           bank_name: selectedBank!.name,
           account_number: accountNumber,
           account_name: accountName,
+          narration: narration.trim() || undefined,
         }),
       });
       const json = await res.json();
@@ -300,6 +326,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
       );
 
       setAmount("");
+      setNarration("");
       setAccountNumber("");
       setAccountName("");
       setSelectedBank(null);
@@ -333,11 +360,20 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
     <div className="grid gap-6 grid-cols-1 lg:grid-cols-[1fr_1.4fr]">
       {/* ── Form ── */}
       <div className="rounded-[12px] border border-[#2D2A3F] bg-[#16161E] p-6">
-        <h2 className="text-[18px] font-semibold text-white">Withdraw Naira</h2>
+        <div className="flex items-center gap-2 mb-3">
+          <svg width="23" height="23" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M10.8637 0L0 5.23069V7.95197H22.5V5.21625L10.8637 0ZM21 6.45197H1.5V6.17325L10.8863 1.65394L21 6.18769V6.45197ZM1.5 18.452H21V19.952H1.5V18.452ZM0 21.077H22.5V22.577H0V21.077ZM1.875 9.45197H3.375V16.952H1.875V9.45197ZM19.125 9.45197H20.625V16.952H19.125V9.45197ZM14.625 9.45197H16.125V16.952H14.625V9.45197ZM6.375 9.45197H7.875V16.952H6.375V9.45197ZM10.5 9.45197H12V16.952H10.5V9.45197Z"
+              fill="white"
+            />
+          </svg>
+
+          <h2 className="text-[16px] font-semibold text-white">Withdrawal details</h2>
+        </div>
 
         <div className="mt-2 flex items-center gap-2">
-          <span className="text-[13px] text-[#A1A5AF]">Available balance:</span>
-          <span className="text-[15px] font-semibold text-white">
+          <span className="text-[14px] font-semibold text-[#A1A5AF]">Available balance:</span>
+          <span className="text-[14px] font-semibold text-[#3B82F6]">
             {balanceLoading ? "..." : formatNgn(latestBalance)}
           </span>
         </div>
@@ -357,16 +393,16 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
         <form className="mt-5 flex flex-col gap-4" onSubmit={handleSubmit}>
           {/* Bank */}
           <label className="flex flex-col gap-1">
-            <span className="text-[13px] font-medium text-white">Bank</span>
+            <span className="text-[12px] font-semibold text-white/90">Bank name</span>
             <div ref={bankDropRef} className="relative">
               <button
                 type="button"
                 disabled={banksLoading}
                 onClick={() => setBankDropOpen((o) => !o)}
-                className="flex h-[43px] w-full items-center justify-between rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-white outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30 disabled:opacity-50"
+                className="flex h-[42px] w-full items-center justify-between rounded-[10px] border border-[#2E2E3A] bg-[#20202C] px-3 text-[13px] font-medium text-white outline-none transition focus:border-[#3B82F6]/80 focus:ring-2 focus:ring-[#3B82F6]/25 disabled:opacity-50"
               >
                 <span className={selectedBank ? "text-white" : "text-white/30"}>
-                  {banksLoading ? "Loading banks..." : selectedBank ? selectedBank.name : "Select bank"}
+                  {banksLoading ? "Loading banks..." : selectedBank ? selectedBank.name : "Select Bank Name"}
                 </span>
                 <svg className="h-4 w-4 shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -413,7 +449,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
 
           {/* Account number */}
           <label className="flex flex-col gap-1">
-            <span className="text-[13px] font-medium text-white">Account Number</span>
+            <span className="text-[12px] font-semibold text-white/90">Account Number</span>
             <input
               type="text"
               inputMode="numeric"
@@ -421,55 +457,74 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
               placeholder="0123456789"
               value={accountNumber}
               onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              className="h-[43px] w-full rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
+              className="h-[42px] w-full rounded-[10px] border border-[#2E2E3A] bg-[#20202C] px-3 text-[13px] font-medium text-white placeholder:text-white/30 outline-none transition focus:border-[#3B82F6]/80 focus:ring-2 focus:ring-[#3B82F6]/25"
             />
           </label>
 
-          {/* Account name */}
-          <div className="flex flex-col gap-1">
-            <span className="text-[13px] font-medium text-white">Account Name</span>
-            <div className="relative h-[43px]">
-              <div className="flex h-full w-full items-center rounded-lg border border-white/10 bg-white/[0.04] px-3 text-sm">
-                {verifyState === "checking" && (
-                  <span className="text-white/40 animate-pulse">Verifying account…</span>
-                )}
-                {verifyState === "verified" && (
-                  <span className="text-green-400 font-medium">{accountName}</span>
-                )}
-                {verifyState === "error" && (
-                  <span className="text-red-400 text-[12px]">{verifyError}</span>
-                )}
-                {verifyState === "idle" && (
-                  <span className="text-white/25">Auto-filled after verification</span>
-                )}
-              </div>
-              {verifyState === "verified" && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <svg className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
+          {/* Account name verification (only after 10 digits) */}
+          {selectedBank && /^\d{10}$/.test(accountNumber) ? (
+            <div className="rounded-[10px] border border-[#2E2E3A] bg-[#20202C] px-3 py-2">
+              {verifyState === "checking" ? (
+                <p className="text-[11px] font-semibold text-white/60 animate-pulse">Verifying account…</p>
+              ) : verifyState === "error" ? (
+                <p className="text-[11px] font-semibold text-red-400">{verifyError || "Account not found"}</p>
+              ) : verifyState === "verified" ? (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold text-[#3A89FF] truncate">{accountName}</p>
+                  <span className="shrink-0">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <g clipPath="url(#clip0_835_3182)">
+                        <path
+                          d="M6.82867 10.8758L4 8.04644L4.94267 7.10377L6.82867 8.98911L10.5993 5.21777L11.5427 6.16111L6.82867 10.8758Z"
+                          fill="#3A89FF"
+                        />
+                        <path
+                          fillRule="evenodd"
+                          clipRule="evenodd"
+                          d="M0.666687 7.99984C0.666687 3.94984 3.95002 0.666504 8.00002 0.666504C12.05 0.666504 15.3334 3.94984 15.3334 7.99984C15.3334 12.0498 12.05 15.3332 8.00002 15.3332C3.95002 15.3332 0.666687 12.0498 0.666687 7.99984ZM8.00002 13.9998C7.21209 13.9998 6.43187 13.8446 5.70392 13.5431C4.97597 13.2416 4.31453 12.7996 3.75738 12.2425C3.20023 11.6853 2.75827 11.0239 2.45674 10.2959C2.15521 9.56798 2.00002 8.78777 2.00002 7.99984C2.00002 7.21191 2.15521 6.43169 2.45674 5.70374C2.75827 4.97578 3.20023 4.31435 3.75738 3.7572C4.31453 3.20004 4.97597 2.75809 5.70392 2.45656C6.43187 2.15503 7.21209 1.99984 8.00002 1.99984C9.59132 1.99984 11.1174 2.63198 12.2427 3.7572C13.3679 4.88241 14 6.40854 14 7.99984C14 9.59114 13.3679 11.1173 12.2427 12.2425C11.1174 13.3677 9.59132 13.9998 8.00002 13.9998Z"
+                          fill="#3A89FF"
+                        />
+                      </g>
+                      <defs>
+                        <clipPath id="clip0_835_3182">
+                          <rect width="16" height="16" fill="white" />
+                        </clipPath>
+                      </defs>
+                    </svg>
+                  </span>
                 </div>
+              ) : (
+                <p className="text-[11px] font-semibold text-white/30">Verifying account…</p>
               )}
             </div>
-          </div>
+          ) : null}
 
           {/* Amount */}
           <label className="flex flex-col gap-1">
-            <span className="text-[13px] font-medium text-white">Amount (₦)</span>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">₦</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
-                className="h-[43px] w-full rounded-lg border border-white/10 bg-white/[0.06] pl-7 pr-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
-              />
-            </div>
+            <span className="text-[12px] font-semibold text-white/90">Amount (Naira)</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="100 - 1,000,000"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
+              className="h-[42px] w-full rounded-[10px] border border-[#2E2E3A] bg-[#20202C] px-3 text-[13px] font-medium text-white placeholder:text-white/30 outline-none transition focus:border-[#3B82F6]/80 focus:ring-2 focus:ring-[#3B82F6]/25"
+            />
             {amountError && (
               <span className="text-[12px] text-red-400">{amountError}</span>
             )}
+          </label>
+
+          {/* Narration */}
+          <label className="flex flex-col gap-1">
+            <span className="text-[12px] font-semibold text-white/90">Narration</span>
+            <input
+              type="text"
+              placeholder="Narration (Optional)"
+              value={narration}
+              onChange={(e) => setNarration(e.target.value)}
+              className="h-[42px] w-full rounded-[10px] border border-[#2E2E3A] bg-[#20202C] px-3 text-[13px] font-medium text-white placeholder:text-white/30 outline-none transition focus:border-[#3B82F6]/80 focus:ring-2 focus:ring-[#3B82F6]/25"
+            />
           </label>
 
           <button
@@ -485,7 +540,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
       </div>
 
       {/* ── History ── */}
-      <div className="rounded-[12px] border border-[#2D2A3F] bg-[#16161E] p-6 h-[100vh] flex flex-col">
+      <div className="hidden rounded-[12px] border border-[#2D2A3F] bg-[#16161E] p-6 h-[84vh] lg:flex flex-col">
         <h2 className="text-[18px] font-semibold text-white">Withdrawal History</h2>
 
         {withdrawals.length === 0 ? (

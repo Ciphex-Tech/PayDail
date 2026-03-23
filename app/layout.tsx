@@ -3,6 +3,9 @@ import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/app/_components/AuthProvider";
 import MobileBottomNav from "@/app/_components/MobileBottomNav";
+import PinGate from "@/app/_components/PinGate";
+
+export const dynamic = "force-dynamic";
 
 const geistSans = Inter({
   variable: "--font-geist-sans",
@@ -33,6 +36,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased pb-[0px] sm:pb-0`}
       >
         <AuthProvider />
+        <PinGate />
         {children}
         <MobileBottomNav />
       </body>

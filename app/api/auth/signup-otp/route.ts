@@ -4,6 +4,28 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { assertIsNonEmptyString } from "@/lib/validators/auth";
 
+async function generateUniquePaydailId(admin: ReturnType<typeof createSupabaseAdminClient>) {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const value = String(Math.floor(10000000 + Math.random() * 90000000));
+
+    const { data, error } = await admin
+      .from("users_info")
+      .select("id")
+      .eq("paydail_id", value)
+      .limit(1);
+
+    if (error) {
+      continue;
+    }
+
+    if (!data || data.length === 0) {
+      return value;
+    }
+  }
+
+  throw new Error("failed_to_generate_unique_paydail_id");
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Record<string, unknown>;
@@ -69,6 +91,9 @@ export async function POST(req: Request) {
 
     const supabase = await createSupabaseServerClient();
 
+    const admin = createSupabaseAdminClient();
+    const paydailId = await generateUniquePaydailId(admin);
+
     const displayName = `${firstName} ${lastName}`.trim();
 
     const { error } = await supabase.auth.signInWithOtp({
@@ -80,6 +105,7 @@ export async function POST(req: Request) {
           full_name: displayName,
           display_name: displayName,
           phone,
+          paydail_id: paydailId,
         },
       },
     });

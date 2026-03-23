@@ -6,9 +6,11 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { withRequiredLock } from "@/lib/workers/locks";
 
-const MIN_WITHDRAWAL = 1_000;
+const MIN_WITHDRAWAL = 100;
 const REVIEW_THRESHOLD = 100_000;
 const DUPLICATE_GUARD_SECONDS = 60;
+
+type WithdrawalType = "bank_transfer" | "paydail_transfer" | "crypto_transfer";
 
 function makeShortDedupeReference(params: {
   userId: string;
@@ -101,13 +103,26 @@ export async function POST(req: Request) {
 
     const body = (await req.json()) as Record<string, unknown>;
     const amount = Number(body.amount);
+    const withdrawalType = String(body.withdrawal_type ?? "").trim() as WithdrawalType;
+    const narration = String(body.narration ?? "").trim();
+
     const bankCode = String(body.bank_code ?? "").trim();
     const bankName = String(body.bank_name ?? "").trim();
     const accountNumber = String(body.account_number ?? "").trim();
     const accountName = String(body.account_name ?? "").trim();
 
-    if (!bankCode || !bankName || !accountNumber || !accountName) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (
+      withdrawalType !== "bank_transfer" &&
+      withdrawalType !== "paydail_transfer" &&
+      withdrawalType !== "crypto_transfer"
+    ) {
+      return NextResponse.json({ error: "Invalid withdrawal type" }, { status: 400 });
+    }
+
+    if (withdrawalType === "bank_transfer") {
+      if (!bankCode || !bankName || !accountNumber || !accountName) {
+        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      }
     }
 
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -121,8 +136,10 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!/^(\d{10})$/.test(accountNumber)) {
-      return NextResponse.json({ error: "Account number must be 10 digits" }, { status: 400 });
+    if (withdrawalType === "bank_transfer") {
+      if (!/^(\d{10})$/.test(accountNumber)) {
+        return NextResponse.json({ error: "Account number must be 10 digits" }, { status: 400 });
+      }
     }
 
     try {
@@ -208,6 +225,8 @@ export async function POST(req: Request) {
             user_id: userId,
             amount,
             currency: "NGN",
+            withdrawal_type: withdrawalType,
+            narration: narration || null,
             bank_code: bankCode,
             bank_name: bankName,
             account_number: accountNumber,
@@ -216,7 +235,7 @@ export async function POST(req: Request) {
             external_reference: reference,
             idempotency_key: idempotencyKey,
             status,
-          })
+          } as any)
           .select("id, reference, status, amount")
           .single();
 

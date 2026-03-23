@@ -1,5 +1,76 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+function base64Nonce(bytes: Uint8Array) {
+  // Edge runtime base64 (Buffer is not available).
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+}
+
+function generateNonce() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return base64Nonce(bytes);
+}
+
+function buildCsp(nonce: string, req: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  let supabaseOrigin = "";
+  let supabaseWsOrigin = "";
+  if (supabaseUrl) {
+    try {
+      const parsed = new URL(supabaseUrl);
+      supabaseOrigin = parsed.origin;
+      supabaseWsOrigin = parsed.origin.replace(/^https?:\/\//, "wss://");
+    } catch {
+      supabaseOrigin = "";
+      supabaseWsOrigin = "";
+    }
+  }
+
+  const connectSrc = [
+    "'self'",
+    "https://api.paystack.co",
+    "https://api.bitgo.com",
+    "https://emailvalidation.abstractapi.com",
+    "https://api.stripe.com",
+    "https://www.paypal.com",
+  ];
+
+  if (supabaseOrigin) {
+    connectSrc.push(supabaseOrigin);
+  }
+
+  if (supabaseWsOrigin) {
+    connectSrc.push(supabaseWsOrigin);
+  }
+
+  // Note: Paystack commonly uses checkout.paystack.com in iframes.
+  // We include it explicitly without wildcards.
+  const csp = [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' https://js.paystack.co https://js.stripe.com https://www.paypal.com`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    `connect-src ${connectSrc.join(" ")}`,
+    "frame-src https://js.paystack.co https://js.stripe.com https://www.paypal.com https://checkout.paystack.com",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "upgrade-insecure-requests",
+  ];
+
+  // Dev-only violation logging endpoint.
+  if (process.env.NODE_ENV !== "production") {
+    csp.push("report-uri /api/csp-report");
+  }
+
+  return csp.join("; ");
+}
+
 // Middleware is used here to protect the reset-password page from being accessed
 // directly via URL manipulation.
 //
@@ -85,9 +156,39 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  const nonce = generateNonce();
+  const csp = buildCsp(nonce, req);
+
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-nonce", nonce);
+  // Next.js reads the nonce from the CSP *request* header during SSR.
+  // We set it here so Next can automatically apply the nonce to its internal scripts.
+  requestHeaders.set("Content-Security-Policy", csp);
+
+  const res = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+
+  res.headers.set("x-nonce", nonce);
+
+  // In dev we use Report-Only to avoid breaking local dev while iterating.
+  // In prod we enforce strictly.
+  if (process.env.NODE_ENV !== "production") {
+    res.headers.set("Content-Security-Policy-Report-Only", csp);
+  } else {
+    res.headers.set("Content-Security-Policy", csp);
+  }
+
+  return res;
 }
 
 export const config = {
-  matcher: ["/forgot-password/verify", "/forgot-password/reset", "/api/:path*"],
+  matcher: [
+    // All pages (excluding Next internal assets)
+    "/((?!_next/static|_next/image|favicon.ico).*)",
+    // Keep existing API CORS handling
+    "/api/:path*",
+  ],
 };
