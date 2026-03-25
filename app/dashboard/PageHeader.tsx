@@ -52,14 +52,15 @@ export default function PageHeader({
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function refreshUnread(userId: string) {
-      const { count } = await supabase
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("read", false);
+      const { data } = await supabase
+        .from("users_info")
+        .select("unread_notifications")
+        .eq("id", userId)
+        .maybeSingle();
 
       if (!mountedRef.current) return;
-      setHasUnread(Boolean(count && count > 0));
+      const unread = Number((data as any)?.unread_notifications ?? 0);
+      setHasUnread(Boolean(Number.isFinite(unread) && unread > 0));
     }
 
     async function init() {
@@ -79,8 +80,8 @@ export default function PageHeader({
           {
             event: "*",
             schema: "public",
-            table: "notifications",
-            filter: `user_id=eq.${userId}`,
+            table: "users_info",
+            filter: `id=eq.${userId}`,
           },
           () => {
             refreshUnread(userId);

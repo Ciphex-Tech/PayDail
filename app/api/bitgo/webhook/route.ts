@@ -20,6 +20,29 @@ function getPriceCache(): Record<string, PriceCacheEntry> {
   return g.__PAYDAIL_PRICE_CACHE__ as Record<string, PriceCacheEntry>;
 }
 
+async function incrementUnread(supabase: ReturnType<typeof createSupabaseAdminClient>, userId: string) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data: info, error: readErr } = await supabase
+      .from("users_info")
+      .select("unread_notifications")
+      .eq("id", userId)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+
+    const current = Number((info as any)?.unread_notifications ?? 0);
+    const next = Math.max(0, current + 1);
+
+    const { data: updated, error: updErr } = await supabase
+      .from("users_info")
+      .update({ unread_notifications: next })
+      .eq("id", userId)
+      .eq("unread_notifications", (info as any)?.unread_notifications)
+      .select("unread_notifications");
+    if (updErr) throw new Error(updErr.message);
+    if (updated && updated.length > 0) return;
+  }
+}
+
 type BitGoPayload = Record<string, any>;
 
 type ParsedEvent = {
@@ -523,6 +546,15 @@ export async function POST(req: Request) {
               userId: userInfo.id,
               txid: parsed.txid,
             });
+          } else {
+            try {
+              await incrementUnread(supabase, userInfo.id);
+            } catch (e: any) {
+              console.error("/api/bitgo/webhook unread_notifications increment error", {
+                userId: userInfo.id,
+                message: String(e?.message ?? e),
+              });
+            }
           }
         }
       } else {
@@ -567,6 +599,15 @@ export async function POST(req: Request) {
               userId: userInfo.id,
               txid: parsed.txid,
             });
+          } else {
+            try {
+              await incrementUnread(supabase, userInfo.id);
+            } catch (e: any) {
+              console.error("/api/bitgo/webhook unread_notifications increment error", {
+                userId: userInfo.id,
+                message: String(e?.message ?? e),
+              });
+            }
           }
         }
       }

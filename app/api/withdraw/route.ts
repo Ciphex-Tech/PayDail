@@ -93,6 +93,36 @@ async function refundBalanceByAmount(params: {
   throw new Error("refund_balance_conflict");
 }
 
+async function incrementUnreadNotifications(params: {
+  admin: ReturnType<typeof createSupabaseAdminClient>;
+  userId: string;
+  delta: number;
+}) {
+  const { admin, userId, delta } = params;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data: info, error: readErr } = await admin
+      .from("users_info")
+      .select("unread_notifications")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (readErr) throw new Error(readErr.message);
+
+    const current = Number((info as any)?.unread_notifications ?? 0);
+    const next = Math.max(0, current + delta);
+
+    const { data: updated, error: updErr } = await admin
+      .from("users_info")
+      .update({ unread_notifications: next })
+      .eq("id", userId)
+      .eq("unread_notifications", (info as any)?.unread_notifications)
+      .select("unread_notifications");
+
+    if (updErr) throw new Error(updErr.message);
+    if (updated && updated.length > 0) return;
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const supabase = await createSupabaseServerClient();
@@ -361,7 +391,7 @@ export async function POST(req: Request) {
         }
 
         const isReview = status === "review_required";
-        await admin.from("notifications").insert({
+        const { error: notifErr } = await admin.from("notifications").insert({
           user_id: userId,
           title: isReview ? "Withdrawal Under Review" : "Withdrawal Pending",
           message: isReview
@@ -371,6 +401,19 @@ export async function POST(req: Request) {
           read: false,
           status: "pending",
         });
+
+        if (notifErr) {
+          console.error("/api/withdraw notification insert error", { message: notifErr.message });
+        } else {
+          try {
+            await incrementUnreadNotifications({ admin, userId, delta: 1 });
+          } catch (e: any) {
+            console.error("/api/withdraw unread_notifications increment error", {
+              userId,
+              message: String(e?.message ?? e),
+            });
+          }
+        }
 
         return NextResponse.json({ ok: true, withdrawal });
       });

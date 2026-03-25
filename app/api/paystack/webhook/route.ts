@@ -4,6 +4,29 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { verifyWebhookSignature } from "@/lib/paystack/client";
 import { restoreWithdrawalBalanceOnce } from "@/lib/withdraw/restoreBalanceOnce";
 
+async function incrementUnread(admin: ReturnType<typeof createSupabaseAdminClient>, userId: string) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data: info, error: readErr } = await admin
+      .from("users_info")
+      .select("unread_notifications")
+      .eq("id", userId)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+
+    const current = Number((info as any)?.unread_notifications ?? 0);
+    const next = Math.max(0, current + 1);
+
+    const { data: updated, error: updErr } = await admin
+      .from("users_info")
+      .update({ unread_notifications: next })
+      .eq("id", userId)
+      .eq("unread_notifications", (info as any)?.unread_notifications)
+      .select("unread_notifications");
+    if (updErr) throw new Error(updErr.message);
+    if (updated && updated.length > 0) return;
+  }
+}
+
 export async function POST(req: Request) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-paystack-signature") ?? "";
@@ -54,7 +77,7 @@ export async function POST(req: Request) {
       })
       .eq("id", wd.id);
 
-    await admin.from("notifications").insert({
+    const { error: notifErr } = await admin.from("notifications").insert({
       user_id: wd.user_id,
       title: "Withdrawal Successful",
       message: `Your withdrawal of ₦${Number(wd.amount).toLocaleString()} has been sent to your bank account successfully.`,
@@ -62,6 +85,17 @@ export async function POST(req: Request) {
       read: false,
       status: "completed",
     });
+
+    if (!notifErr) {
+      try {
+        await incrementUnread(admin, wd.user_id);
+      } catch (e: any) {
+        console.error("/api/paystack/webhook unread_notifications increment error", {
+          userId: wd.user_id,
+          message: String(e?.message ?? e),
+        });
+      }
+    }
   }
 
   if (event === "transfer.failed" || event === "transfer.reversed") {
@@ -83,7 +117,7 @@ export async function POST(req: Request) {
       amount: Number(wd.amount),
     });
 
-    await admin.from("notifications").insert({
+    const { error: notifErr } = await admin.from("notifications").insert({
       user_id: wd.user_id,
       title: "Withdrawal Failed",
       message: `Your withdrawal of ₦${Number(wd.amount).toLocaleString()} could not be processed. Your balance has been restored.`,
@@ -91,6 +125,17 @@ export async function POST(req: Request) {
       read: false,
       status: "failed",
     });
+
+    if (!notifErr) {
+      try {
+        await incrementUnread(admin, wd.user_id);
+      } catch (e: any) {
+        console.error("/api/paystack/webhook unread_notifications increment error", {
+          userId: wd.user_id,
+          message: String(e?.message ?? e),
+        });
+      }
+    }
   }
 
   return NextResponse.json({ ok: true });

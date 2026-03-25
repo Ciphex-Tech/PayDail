@@ -67,6 +67,12 @@ export default function NotificationsContent({
     });
   }, []);
 
+  useEffect(() => {
+    if (!userId) return;
+    const supabase = createSupabaseBrowserClient();
+    supabase.from("users_info").update({ unread_notifications: unreadCount }).eq("id", userId);
+  }, [unreadCount, userId]);
+
   async function markAsRead(id: string) {
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     try {
@@ -144,7 +150,7 @@ export default function NotificationsContent({
                   >
                     <div className="flex items-start gap-3">
                       <div className="mt-1 flex items-center justify-center">
-                        <Image src={icon} alt="" width={32} height={32} />
+                        <Image src={icon} alt="" width={32} height={32} className="rounded-full sm:rounded-none"/>
                       </div>
 
                       <div className="flex-1">
