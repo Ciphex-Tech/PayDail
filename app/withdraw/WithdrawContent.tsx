@@ -607,7 +607,15 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
               </button>
 
               {bankDropOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-[10px] border border-[#2E2E3A] bg-[#1C1C28] shadow-xl">
+                <div
+                  className="absolute z-50 mt-1 w-full rounded-[10px] border border-[#2E2E3A] bg-[#1C1C28] shadow-xl"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                >
                   <div className="p-2 border-b border-[#2E2E3A]">
                     <input
                       autoFocus
@@ -626,10 +634,21 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
                         <li key={b.id}>
                           <button
                             type="button"
+                            onPointerDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }}
                             onClick={() => {
                               setSelectedBank(b);
                               setBankDropOpen(false);
                               setBankQuery("");
+                              window.setTimeout(() => {
+                                try {
+                                  (document.activeElement as HTMLElement | null)?.blur?.();
+                                } catch {
+                                  // ignore
+                                }
+                              }, 0);
                             }}
                             className="w-full px-4 py-2 text-left text-[13px] text-white hover:bg-white/[0.06] transition-colors"
                           >
