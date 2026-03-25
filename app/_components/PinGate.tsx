@@ -4,13 +4,21 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { errorMessageForToast, fetchWithTimeout } from "@/lib/network/safeFetch";
+import { createIdempotencyKey } from "@/lib/network/idempotency";
+import { useNetworkStatus } from "@/lib/network/useNetworkStatus";
 
 const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password"];
+const DISABLED_PATHS = ["/create-pin"];
 
 type Stage = "create" | "confirm" | "saving";
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+}
+
+function isDisabledPath(pathname: string) {
+  return DISABLED_PATHS.some((p) => pathname.startsWith(p));
 }
 
 function useBodyScrollLock(locked: boolean) {
@@ -26,6 +34,7 @@ function useBodyScrollLock(locked: boolean) {
 
 export default function PinGate() {
   const pathname = usePathname();
+  const { isOnline } = useNetworkStatus();
 
   const [checking, setChecking] = useState(true);
   const [mustSetPin, setMustSetPin] = useState(false);
@@ -53,8 +62,24 @@ export default function PinGate() {
       return;
     }
 
+    if (isDisabledPath(pathname)) {
+      setChecking(false);
+      return;
+    }
+
+    if (!isOnline) {
+      setChecking(false);
+      setMustSetPin(false);
+      return;
+    }
+
     try {
-      const res = await fetch("/api/pin/status", { method: "GET", cache: "no-store" });
+      const res = await fetchWithTimeout("/api/pin/status", {
+        method: "GET",
+        cache: "no-store",
+        retry: { retries: 1, delayMs: 400 },
+        sensitive: false,
+      });
       const raw = await res.text();
       let json: { ok?: boolean; has_pin?: boolean } = {};
       try {
@@ -79,9 +104,14 @@ export default function PinGate() {
         setCreatedPin("");
         setError("");
       }
-    } catch {
+    } catch (err) {
       if (canceledRef?.canceled) return;
-      setMustSetPin(true);
+      // If the network fails, do NOT force-open the pin gate.
+      // Only show an error if the modal is already open.
+      setMustSetPin((prev) => {
+        if (prev) setError(errorMessageForToast(err));
+        return prev;
+      });
     } finally {
       if (!canceledRef?.canceled) setChecking(false);
     }
@@ -94,21 +124,24 @@ export default function PinGate() {
       canceledRef.canceled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, isOnline]);
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
     const { data } = supabase.auth.onAuthStateChange(() => {
+      if (!isOnline) return;
       checkPinStatus();
     });
     return () => {
       data.subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isOnline]);
 
   useEffect(() => {
     function forceOpen() {
+      if (!isOnline) return;
+      if (isDisabledPath(pathname)) return;
       setMustSetPin(true);
       setStage("create");
       setPinSlots(["", "", "", ""]);
@@ -121,7 +154,7 @@ export default function PinGate() {
     return () => {
       window.removeEventListener("paydail:open-pin-gate", forceOpen);
     };
-  }, []);
+  }, [pathname, isOnline]);
 
   useEffect(() => {
     if (!mustSetPin) return;
@@ -243,10 +276,15 @@ export default function PinGate() {
 
       setStage("saving");
       try {
-        const res = await fetch("/api/pin/set", {
+        const idempotencyKey = createIdempotencyKey();
+        const res = await fetchWithTimeout("/api/pin/set", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": idempotencyKey,
+          },
           body: JSON.stringify({ pin: createdPin, confirm_pin: confirmPin }),
+          sensitive: true,
         });
         const json = (await res.json()) as { ok?: boolean; error?: string };
 
@@ -257,8 +295,8 @@ export default function PinGate() {
         }
 
         setMustSetPin(false);
-      } catch {
-        setError("Network error. Please try again.");
+      } catch (err) {
+        setError(errorMessageForToast(err));
         setStage("confirm");
       }
     }

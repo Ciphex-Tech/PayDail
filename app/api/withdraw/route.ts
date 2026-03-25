@@ -12,6 +12,34 @@ const DUPLICATE_GUARD_SECONDS = 60;
 
 type WithdrawalType = "bank_transfer" | "paydail_transfer" | "crypto_transfer";
 
+function normalizePin(raw: unknown) {
+  const pin = typeof raw === "string" ? raw.trim() : "";
+  if (!/^\d{4}$/.test(pin)) {
+    throw new Error("PIN must be 4 digits");
+  }
+  return pin;
+}
+
+function verifyPin(pin: string, pinHash: string) {
+  const parts = String(pinHash || "").split("$");
+  if (parts.length !== 5) return false;
+  if (parts[0] !== "pbkdf2" || parts[1] !== "sha256") return false;
+
+  const iterations = Number(parts[2]);
+  if (!Number.isFinite(iterations) || iterations <= 0) return false;
+
+  const salt = Buffer.from(parts[3] || "", "base64");
+  const expected = Buffer.from(parts[4] || "", "base64");
+  if (salt.length === 0 || expected.length === 0) return false;
+
+  const derived = crypto.pbkdf2Sync(pin, salt, iterations, expected.length, "sha256");
+  try {
+    return crypto.timingSafeEqual(derived, expected);
+  } catch {
+    return false;
+  }
+}
+
 function makeShortDedupeReference(params: {
   userId: string;
   amount: number;
@@ -79,7 +107,7 @@ export async function POST(req: Request) {
         : "";
 
       if (!token) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
       }
 
       const tokenClient = createClient(
@@ -93,18 +121,46 @@ export async function POST(req: Request) {
 
       const { data: tokenData, error: tokenError } = await tokenClient.auth.getUser();
       if (tokenError || !tokenData?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
       }
 
       userId = tokenData.user.id;
     }
 
-    const admin = createSupabaseAdminClient();
-
     const body = (await req.json()) as Record<string, unknown>;
     const amount = Number(body.amount);
     const withdrawalType = String(body.withdrawal_type ?? "").trim() as WithdrawalType;
     const narration = String(body.narration ?? "").trim();
+
+    let pin = "";
+    try {
+      pin = normalizePin(body.pin);
+    } catch {
+      return NextResponse.json({ ok: false, error: "PIN is required" }, { status: 400 });
+    }
+
+    const admin = createSupabaseAdminClient();
+
+    const { data: pinInfo, error: pinErr } = await admin
+      .from("users_info")
+      .select("pin_hash")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (pinErr) {
+      console.error("/api/withdraw pin lookup error", { message: pinErr.message });
+      return NextResponse.json({ ok: false, error: "failed to verify pin" }, { status: 500 });
+    }
+
+    const pinHash = String((pinInfo as any)?.pin_hash ?? "");
+    if (!pinHash || pinHash.trim().length === 0) {
+      return NextResponse.json({ ok: false, error: "PIN not set" }, { status: 400 });
+    }
+
+    const pinOk = verifyPin(pin, pinHash);
+    if (!pinOk) {
+      return NextResponse.json({ ok: false, error: "Wrong PIN" }, { status: 401 });
+    }
 
     const bankCode = String(body.bank_code ?? "").trim();
     const bankName = String(body.bank_name ?? "").trim();
@@ -164,6 +220,33 @@ export async function POST(req: Request) {
           return NextResponse.json({ ok: true, withdrawal: existingByRef[0], deduped: true });
         }
 
+        const { data: rates, error: ratesErr } = await admin
+          .from("admin_rates")
+          .select("small_fee, medium_fee, large_fee")
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (ratesErr) {
+          console.error("/api/withdraw admin_rates error", { message: ratesErr.message });
+          return NextResponse.json({ error: "Failed to load withdrawal fees" }, { status: 500 });
+        }
+
+        const smallFee = Number((rates as any)?.small_fee ?? 0);
+        const mediumFee = Number((rates as any)?.medium_fee ?? 0);
+        const largeFee = Number((rates as any)?.large_fee ?? 0);
+
+        const fee =
+          amount >= 100 && amount <= 19_999
+            ? smallFee
+            : amount >= 20_000 && amount <= 99_999
+              ? mediumFee
+              : amount >= 100_000
+                ? largeFee
+                : 0;
+
+        const totalDebit = Math.max(0, amount + (Number.isFinite(fee) ? fee : 0));
+
         const { data: userInfo, error: balErr } = await admin
           .from("users_info")
           .select("naira_balance")
@@ -176,16 +259,18 @@ export async function POST(req: Request) {
 
         const balance = Number(userInfo.naira_balance ?? 0);
 
-        if (balance < amount) {
+        if (balance < totalDebit) {
           return NextResponse.json(
-            { error: `Insufficient balance. Available: ₦${balance.toLocaleString()}` },
+            {
+              error: `Insufficient balance. Available: ₦${balance.toLocaleString()}`,
+            },
             { status: 400 },
           );
         }
 
         const { data: deductRows, error: deductErr } = await admin
           .from("users_info")
-          .update({ naira_balance: balance - amount })
+          .update({ naira_balance: balance - totalDebit })
           .eq("id", userId)
           .eq("naira_balance", userInfo.naira_balance)
           .select("naira_balance");
@@ -202,7 +287,7 @@ export async function POST(req: Request) {
             .maybeSingle();
 
           const latestBalance = Number(latestInfo?.naira_balance ?? 0);
-          if (latestBalance < amount) {
+          if (latestBalance < totalDebit) {
             return NextResponse.json(
               { error: `Insufficient balance. Available: ₦${latestBalance.toLocaleString()}` },
               { status: 400 },
@@ -224,6 +309,7 @@ export async function POST(req: Request) {
           .insert({
             user_id: userId,
             amount,
+            fee,
             currency: "NGN",
             withdrawal_type: withdrawalType,
             narration: narration || null,
@@ -236,17 +322,17 @@ export async function POST(req: Request) {
             idempotency_key: idempotencyKey,
             status,
           } as any)
-          .select("id, reference, status, amount")
+          .select("id, reference, status, amount, fee")
           .single();
 
         if (insertErr) {
           // Refund safely without overwriting the user's balance (handles race conditions).
           try {
-            await refundBalanceByAmount({ admin, userId, amount });
+            await refundBalanceByAmount({ admin, userId, amount: totalDebit });
           } catch (refundErr: any) {
             console.error("/api/withdraw refund error", {
               userId,
-              amount,
+              amount: totalDebit,
               message: String(refundErr?.message ?? refundErr),
             });
           }

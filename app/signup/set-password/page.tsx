@@ -114,7 +114,13 @@ export default function SetPasswordPage() {
         throw new Error(json.error || "Failed to set password");
       }
 
-      router.push("/login");
+      try {
+        window.sessionStorage.removeItem("signup_verified");
+      } catch {
+        // ignore
+      }
+
+      router.push("/create-pin");
     } catch (err) {
       console.error("set-password error", err);
       setErrorToastOpen(true);

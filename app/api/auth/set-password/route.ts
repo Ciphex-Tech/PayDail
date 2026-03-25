@@ -5,6 +5,16 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { assertPassword } from "@/lib/validators/auth";
 
+function cookieOptions() {
+  const secure = process.env.NODE_ENV === "production";
+  return {
+    httpOnly: true,
+    secure,
+    sameSite: "lax" as const,
+    path: "/",
+  };
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Record<string, unknown>;
@@ -104,7 +114,9 @@ export async function POST(req: Request) {
         );
       }
 
-      return NextResponse.json({ ok: true });
+      const res = NextResponse.json({ ok: true });
+      res.cookies.set("allow_create_pin", "true", { ...cookieOptions(), maxAge: 10 * 60 });
+      return res;
     }
 
     const { error } = await supabase.auth.updateUser({ password });
@@ -145,7 +157,9 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ ok: true });
+    const res = NextResponse.json({ ok: true });
+    res.cookies.set("allow_create_pin", "true", { ...cookieOptions(), maxAge: 10 * 60 });
+    return res;
   } catch (e) {
     const message = e instanceof Error ? e.message : "unknown error";
     console.error("/api/auth/set-password unhandled error", e);

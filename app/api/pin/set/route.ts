@@ -4,6 +4,90 @@ import crypto from "crypto";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { rateLimitByKey } from "@/lib/security/rateLimit";
+
+const IDEMPOTENCY_ENDPOINT = "/api/pin/set";
+const IDEMPOTENCY_PROCESSING_STATUS = 102;
+
+type ApiResponseJson = { ok: boolean; error?: string };
+
+async function getIdempotencyResult(admin: ReturnType<typeof createSupabaseAdminClient>, params: {
+  userId: string;
+  endpoint: string;
+  idempotencyKey: string;
+}) {
+  const { data, error } = await admin
+    .from("idempotency_keys")
+    .select("status, response_json")
+    .eq("user_id", params.userId)
+    .eq("endpoint", params.endpoint)
+    .eq("idempotency_key", params.idempotencyKey)
+    .maybeSingle();
+
+  if (error) {
+    console.error("/api/pin/set idempotency select error", { message: error.message });
+    return null;
+  }
+
+  if (!data) return null;
+  return {
+    status: Number((data as any).status),
+    json: (data as any).response_json as ApiResponseJson,
+  };
+}
+
+async function beginIdempotency(admin: ReturnType<typeof createSupabaseAdminClient>, params: {
+  userId: string;
+  endpoint: string;
+  idempotencyKey: string;
+}) {
+  const processing: ApiResponseJson = { ok: false, error: "processing" };
+
+  const { error } = await admin.from("idempotency_keys").insert({
+    user_id: params.userId,
+    endpoint: params.endpoint,
+    idempotency_key: params.idempotencyKey,
+    status: IDEMPOTENCY_PROCESSING_STATUS,
+    response_json: processing,
+  } as any);
+
+  if (!error) return { ok: true as const };
+
+  // If unique constraint hit, another request already created this record.
+  const code = String((error as any).code || "");
+  const msg = String(error.message || "").toLowerCase();
+  if (code === "23505" || msg.includes("duplicate") || msg.includes("unique")) {
+    return { ok: false as const, duplicate: true as const };
+  }
+
+  console.error("/api/pin/set idempotency insert error", { message: error.message, code });
+  return { ok: false as const, duplicate: false as const };
+}
+
+async function finalizeIdempotency(admin: ReturnType<typeof createSupabaseAdminClient>, params: {
+  userId: string;
+  endpoint: string;
+  idempotencyKey: string;
+  status: number;
+  json: ApiResponseJson;
+}) {
+  const { error } = await admin
+    .from("idempotency_keys")
+    .update({ status: params.status, response_json: params.json } as any)
+    .eq("user_id", params.userId)
+    .eq("endpoint", params.endpoint)
+    .eq("idempotency_key", params.idempotencyKey);
+
+  if (error) {
+    console.error("/api/pin/set idempotency update error", { message: error.message });
+  }
+}
+
+function getClientIp(req: Request) {
+  const xff = req.headers.get("x-forwarded-for") || "";
+  const first = xff.split(",")[0]?.trim();
+  return first || req.headers.get("x-real-ip") || "unknown";
+}
 
 function normalizePin(raw: unknown) {
   const pin = typeof raw === "string" ? raw.trim() : "";
@@ -61,6 +145,14 @@ async function getAuthenticatedUserId(req: Request): Promise<string> {
 
 export async function POST(req: Request) {
   try {
+    const idempotencyKey = (req.headers.get("idempotency-key") || "").trim();
+    if (!idempotencyKey) {
+      return NextResponse.json(
+        { ok: false, error: "missing idempotency-key" },
+        { status: 400 },
+      );
+    }
+
     const body = (await req.json()) as Record<string, unknown>;
 
     const pin = normalizePin(body.pin);
@@ -79,6 +171,48 @@ export async function POST(req: Request) {
 
     const admin = createSupabaseAdminClient();
 
+    const begin = await beginIdempotency(admin, {
+      userId,
+      endpoint: IDEMPOTENCY_ENDPOINT,
+      idempotencyKey,
+    });
+
+    if (!begin.ok) {
+      const existing = await getIdempotencyResult(admin, {
+        userId,
+        endpoint: IDEMPOTENCY_ENDPOINT,
+        idempotencyKey,
+      });
+
+      if (existing) {
+        if (existing.status === IDEMPOTENCY_PROCESSING_STATUS) {
+          return NextResponse.json({ ok: false, error: "request in progress" }, { status: 409 });
+        }
+        return NextResponse.json(existing.json, { status: existing.status });
+      }
+
+      // If we can't begin and can't read existing, fail safe.
+      return NextResponse.json({ ok: false, error: "Something went wrong. Try again" }, { status: 500 });
+    }
+
+    const ip = getClientIp(req);
+    const rl = rateLimitByKey(`pin_set:${userId}:${ip}`, 5, 10 * 60_000);
+    if (!rl.ok) {
+      const headers = new Headers();
+      if (typeof rl.retryAfterMs === "number") {
+        headers.set("retry-after", String(Math.max(1, Math.ceil(rl.retryAfterMs / 1000))));
+      }
+      const json: ApiResponseJson = { ok: false, error: "too many requests" };
+      await finalizeIdempotency(admin, {
+        userId,
+        endpoint: IDEMPOTENCY_ENDPOINT,
+        idempotencyKey,
+        status: 429,
+        json,
+      });
+      return NextResponse.json(json, { status: 429, headers });
+    }
+
     const { data: existing, error: existingErr } = await admin
       .from("users_info")
       .select("pin_hash")
@@ -87,12 +221,28 @@ export async function POST(req: Request) {
 
     if (existingErr) {
       console.error("/api/pin/set existing lookup error", { message: existingErr.message });
-      return NextResponse.json({ ok: false, error: "failed to check existing pin" }, { status: 500 });
+      const json: ApiResponseJson = { ok: false, error: "failed to check existing pin" };
+      await finalizeIdempotency(admin, {
+        userId,
+        endpoint: IDEMPOTENCY_ENDPOINT,
+        idempotencyKey,
+        status: 500,
+        json,
+      });
+      return NextResponse.json(json, { status: 500 });
     }
 
     const existingHash = (existing as any)?.pin_hash;
     if (typeof existingHash === "string" && existingHash.trim().length > 0) {
-      return NextResponse.json({ ok: false, error: "PIN already set" }, { status: 409 });
+      const json: ApiResponseJson = { ok: false, error: "PIN already set" };
+      await finalizeIdempotency(admin, {
+        userId,
+        endpoint: IDEMPOTENCY_ENDPOINT,
+        idempotencyKey,
+        status: 409,
+        json,
+      });
+      return NextResponse.json(json, { status: 409 });
     }
 
     const pinHash = hashPin(pin);
@@ -103,10 +253,26 @@ export async function POST(req: Request) {
 
     if (upsertErr) {
       console.error("/api/pin/set upsert error", { message: upsertErr.message });
-      return NextResponse.json({ ok: false, error: "failed to save pin" }, { status: 500 });
+      const json: ApiResponseJson = { ok: false, error: "failed to save pin" };
+      await finalizeIdempotency(admin, {
+        userId,
+        endpoint: IDEMPOTENCY_ENDPOINT,
+        idempotencyKey,
+        status: 500,
+        json,
+      });
+      return NextResponse.json(json, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true });
+    const json: ApiResponseJson = { ok: true };
+    await finalizeIdempotency(admin, {
+      userId,
+      endpoint: IDEMPOTENCY_ENDPOINT,
+      idempotencyKey,
+      status: 200,
+      json,
+    });
+    return NextResponse.json(json);
   } catch (e) {
     const message = e instanceof Error ? e.message : "unknown error";
     console.error("/api/pin/set unhandled error", e);

@@ -27,7 +27,7 @@ export default function TopToast({
 
   return (
     <div
-      className={`pointer-events-none fixed left-1/2 top-4 z-50 -translate-x-1/2 transition-transform duration-300 ${
+      className={`pointer-events-none fixed left-1/2 top-4 z-[10000] -translate-x-1/2 transition-transform duration-300 ${
         open ? "translate-y-0" : "-translate-y-24"
       }`}
       aria-hidden={!open}

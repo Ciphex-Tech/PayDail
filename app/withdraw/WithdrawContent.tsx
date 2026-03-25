@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import TopToast from "@/app/_components/TopToast";
+import { errorMessageForToast, fetchWithTimeout } from "@/lib/network/safeFetch";
+import { createIdempotencyKey } from "@/lib/network/idempotency";
 
 type Bank = { id: number; name: string; code: string };
 
@@ -11,6 +14,7 @@ type Withdrawal = {
   id: string;
   reference: string;
   amount: number;
+  fee?: number | null;
   bank_name: string;
   account_number: string;
   account_name: string;
@@ -65,6 +69,12 @@ function maskAccount(acct: string) {
   return acct.slice(0, 3) + "****" + acct.slice(-3);
 }
 
+function shortReference(ref: string) {
+  const r = String(ref || "");
+  if (r.length <= 10) return r;
+  return `${r.slice(0, 4)}...${r.slice(-5)}`;
+}
+
 export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Props) {
   const router = useRouter();
 
@@ -90,6 +100,29 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
 
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState("Couldn't process the request");
+  const [toastVariant, setToastVariant] = useState<"error" | "success">("error");
+
+  const [fees, setFees] = useState<{ small: number; medium: number; large: number } | null>(null);
+  const [feesLoading, setFeesLoading] = useState(false);
+
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [pinOpen, setPinOpen] = useState(false);
+  const [processingOpen, setProcessingOpen] = useState(false);
+
+  const [submittedDetails, setSubmittedDetails] = useState<{
+    amount: number;
+    fee: number;
+    bankName: string;
+    accountName: string;
+    reference: string;
+    createdAt: string;
+  } | null>(null);
+
+  const [pinSlots, setPinSlots] = useState<string[]>(["", "", "", ""]);
+  const pinInputsRef = useRef<Array<HTMLInputElement | null>>([]);
+
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(initialWithdrawals);
 
   const refreshedByRealtimeRef = useRef(false);
@@ -108,13 +141,25 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
     return Number.isFinite(n) ? n : 0;
   }, [amount]);
 
+  const fee = useMemo(() => {
+    if (!fees) return 0;
+    if (amountNum >= 100 && amountNum <= 19_999) return fees.small;
+    if (amountNum >= 20_000 && amountNum <= 99_999) return fees.medium;
+    if (amountNum >= 100_000) return fees.large;
+    return 0;
+  }, [amountNum, fees]);
+
+  const totalAmount = useMemo(() => {
+    return Math.max(0, amountNum + fee);
+  }, [amountNum, fee]);
+
   const amountError = useMemo(() => {
     if (!amount) return "";
     if (!Number.isFinite(amountNum) || amountNum <= 0) return "Enter a valid amount";
     if (amountNum < 100) return "Minimum withdrawal is ₦100";
-    if (amountNum > latestBalance) return `Insufficient balance (₦${latestBalance.toLocaleString()})`;
+    if (totalAmount > latestBalance) return `Insufficient balance (₦${latestBalance.toLocaleString()})`;
     return "";
-  }, [amount, amountNum, latestBalance]);
+  }, [amount, amountNum, latestBalance, totalAmount]);
 
   const canSubmit =
     !submitting &&
@@ -122,7 +167,7 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
     verifyState === "verified" &&
     accountName.trim().length > 0 &&
     amountNum >= 100 &&
-    amountNum <= latestBalance &&
+    totalAmount <= latestBalance &&
     !amountError;
 
   useEffect(() => {
@@ -133,6 +178,32 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
     setWithdrawals(initialWithdrawals);
     refreshedByRealtimeRef.current = false;
   }, [initialWithdrawals]);
+
+  async function copyReferenceToClipboard(reference: string) {
+    const ref = String(reference || "").trim();
+    if (!ref) return;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(ref);
+      } else {
+        const input = document.createElement("input");
+        input.value = ref;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        document.body.removeChild(input);
+      }
+
+      setToastVariant("success");
+      setToastMessage("Reference copied");
+      setToastOpen(true);
+    } catch {
+      setToastVariant("error");
+      setToastMessage("Couldn't copy reference");
+      setToastOpen(true);
+    }
+  }
 
   async function refreshBalance() {
     setBalanceLoading(true);
@@ -213,6 +284,44 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
   }, []);
 
   useEffect(() => {
+    let canceled = false;
+
+    async function loadFees() {
+      setFeesLoading(true);
+      try {
+        const res = await fetchWithTimeout("/api/admin/withdrawal-fees", {
+          method: "GET",
+          cache: "no-store",
+          retry: { retries: 1, delayMs: 400 },
+          sensitive: false,
+        });
+        const json = (await res.json()) as {
+          ok?: boolean;
+          small_fee?: number;
+          medium_fee?: number;
+          large_fee?: number;
+        };
+        if (!canceled && res.ok && json.ok) {
+          setFees({
+            small: Number(json.small_fee ?? 0),
+            medium: Number(json.medium_fee ?? 0),
+            large: Number(json.large_fee ?? 0),
+          });
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (!canceled) setFeesLoading(false);
+      }
+    }
+
+    loadFees();
+    return () => {
+      canceled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (bankDropRef.current && !bankDropRef.current.contains(e.target as Node)) {
         setBankDropOpen(false);
@@ -259,48 +368,114 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
+    setToastOpen(false);
+    setToastVariant("error");
+    setToastMessage("Couldn't process the request");
+
+    if (!canSubmit || submitting) return;
+
+    setSummaryOpen(true);
+  }
+
+  function closeAllModals() {
+    setSummaryOpen(false);
+    setPinOpen(false);
+    setProcessingOpen(false);
+  }
+
+  function resetPinInputs() {
+    setPinSlots(["", "", "", ""]);
+    pinInputsRef.current = [];
+  }
+
+  function focusPinSlot(index: number) {
+    pinInputsRef.current[index]?.focus();
+    pinInputsRef.current[index]?.select();
+  }
+
+  function setPinSlot(index: number, value: string) {
+    setPinSlots((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  }
+
+  function handlePinChange(index: number, raw: string) {
+    setToastOpen(false);
+    const digits = raw.replace(/\D/g, "");
+
+    if (digits.length === 0) {
+      setPinSlot(index, "");
+      return;
+    }
+
+    if (digits.length > 1) {
+      setPinSlots((prev) => {
+        const next = [...prev];
+        let cursor = index;
+        for (const ch of digits) {
+          if (cursor > 3) break;
+          next[cursor] = ch;
+          cursor += 1;
+        }
+        return next;
+      });
+
+      const nextIndex = Math.min(index + digits.length, 4) - 1;
+      focusPinSlot(Math.min(nextIndex + 1, 3));
+      return;
+    }
+
+    setPinSlot(index, digits);
+    if (index < 3) focusPinSlot(index + 1);
+  }
+
+  function handlePinKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Backspace") {
+      if (pinSlots[index]) {
+        setPinSlot(index, "");
+        return;
+      }
+
+      if (index > 0) {
+        focusPinSlot(index - 1);
+        setPinSlot(index - 1, "");
+      }
+      return;
+    }
+
+    if (e.key === "ArrowLeft" && index > 0) {
+      e.preventDefault();
+      focusPinSlot(index - 1);
+      return;
+    }
+
+    if (e.key === "ArrowRight" && index < 3) {
+      e.preventDefault();
+      focusPinSlot(index + 1);
+    }
+  }
+
+  async function submitWithdrawalWithPin(pin: string) {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
 
     setSubmitting(true);
-
     setSubmitError("");
     setSubmitSuccess("");
 
     try {
-      const pinRes = await fetch("/api/pin/status", { method: "GET", cache: "no-store" });
-      const pinJson = (await pinRes.json()) as { ok?: boolean; has_pin?: boolean };
-      const hasPin = Boolean(pinRes.ok && pinJson?.ok && pinJson?.has_pin);
-      if (!hasPin) {
-        router.refresh();
-        window.setTimeout(() => {
-          window.dispatchEvent(new Event("paydail:open-pin-gate"));
-        }, 0);
-        setSubmitting(false);
-        inFlightRef.current = false;
-        return;
-      }
-    } catch {
-      router.refresh();
-      window.setTimeout(() => {
-        window.dispatchEvent(new Event("paydail:open-pin-gate"));
-      }, 0);
-      setSubmitting(false);
-      inFlightRef.current = false;
-      return;
-    }
+      await refreshBalance();
+      if (!canSubmit) return false;
 
-    await refreshBalance();
-
-    if (!canSubmit) {
-      setSubmitting(false);
-      inFlightRef.current = false;
-      return;
-    }
-    try {
-      const res = await fetch("/api/withdraw", {
+      const idempotencyKey = createIdempotencyKey();
+      const res = await fetchWithTimeout("/api/withdraw", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": idempotencyKey,
+        },
         body: JSON.stringify({
           withdrawal_type: "bank_transfer",
           amount: amountNum,
@@ -309,21 +484,36 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
           account_number: accountNumber,
           account_name: accountName,
           narration: narration.trim() || undefined,
+          pin,
         }),
+        sensitive: true,
       });
-      const json = await res.json();
+
+      const json = (await res.json()) as any;
 
       if (!res.ok || !json.ok) {
-        setSubmitError(json.error ?? "Failed to submit withdrawal");
-        return;
+        const msg = String(json?.error || json?.message || "Failed to submit withdrawal");
+        if (res.status === 401 && msg.toLowerCase().includes("wrong pin")) {
+          setToastVariant("error");
+          setToastMessage("Wrong PIN");
+          setToastOpen(true);
+          return false;
+        }
+        setSubmitError(msg);
+        return false;
       }
 
-      const isReview = json.withdrawal?.status === "review_required";
-      setSubmitSuccess(
-        isReview
-          ? "Withdrawal submitted successfully! It will be processed shortly."
-          : "Withdrawal submitted successfully! It will be processed shortly.",
-      );
+      const submittedAt = new Date().toISOString();
+      setSubmittedDetails({
+        amount: amountNum,
+        fee: typeof json?.withdrawal?.fee === "number" ? json.withdrawal.fee : fee,
+        bankName: selectedBank!.name,
+        accountName: accountName,
+        reference: String(json?.withdrawal?.reference ?? ""),
+        createdAt: submittedAt,
+      });
+
+      setProcessingOpen(true);
 
       setAmount("");
       setNarration("");
@@ -340,24 +530,31 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
         id: json.withdrawal.id,
         reference: json.withdrawal.reference,
         amount: amountNum,
+        fee: typeof json?.withdrawal?.fee === "number" ? json.withdrawal.fee : fee,
         bank_name: selectedBank!.name,
         account_number: accountNumber,
         account_name: accountName,
         status: json.withdrawal.status,
         failure_reason: null,
-        created_at: new Date().toISOString(),
+        created_at: submittedAt,
       };
       setWithdrawals((prev) => [newWd, ...prev]);
-    } catch {
-      setSubmitError("Network error. Please try again.");
+      return true;
+    } catch (err) {
+      setToastVariant("error");
+      setToastMessage(errorMessageForToast(err));
+      setToastOpen(true);
+      return false;
     } finally {
       setSubmitting(false);
       inFlightRef.current = false;
     }
+  
   }
 
   return (
     <div className="grid gap-6 grid-cols-1 lg:grid-cols-[1fr_1.4fr]">
+      <TopToast open={toastOpen} message={toastMessage} variant={toastVariant} onClose={() => setToastOpen(false)} />
       {/* ── Form ── */}
       <div className="rounded-[12px] border border-[#2D2A3F] bg-[#16161E] p-3.5 md:py-6 md:px-6">
         <div className="flex items-center gap-2 mb-3">
@@ -538,6 +735,240 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
           
         </form>
       </div>
+
+      {summaryOpen ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-[520px] rounded-[18px] border border-[#2E2E3A] bg-[#0E0E16] p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[18px] sm:text-[20px] font-bold text-white">Withdrawal Summary</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setSummaryOpen(false);
+                }}
+                className="h-8 w-8 rounded-full border border-white/10 text-white/70 hover:bg-white/10"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-5">
+              <p className="text-[12px] sm:text-[14px] text-white/70">Withdrawal amount</p>
+              <div className="mt-2 rounded-[14px] bg-[#1D78FF] px-4 py-3 text-white">
+                <div className="flex items-center justify-between text-[12px] sm:text-[14px]">
+                  <span>Amount:</span>
+                  <span className="font-semibold text-[12px] sm:text-[14px]">{formatNgn(amountNum)}</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[12px] sm:text-[14px]">
+                  <span>Fees:</span>
+                  <span className="font-semibold">
+                    {feesLoading ? "..." : formatNgn(fee)}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[12px] sm:text-[14px]">
+                  <span>Total:</span>
+                  <span className="font-semibold">{feesLoading ? "..." : formatNgn(totalAmount)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <p className="text-[12px] sm:text-[14px] text-white/70">Beneficiary Details</p>
+              <div className="mt-2 rounded-[14px] border border-white/10 bg-white/[0.03] px-4 py-3 text-white">
+                <div className="flex items-center justify-between text-[12px] sm:text-[14px]">
+                  <span className="text-white/70">Bank Name :</span>
+                  <span className="">{selectedBank?.name || "-"}</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[12px] sm:text-[14px]">
+                  <span className="text-white/70">Account Name :</span>
+                  <span className="">{accountName || "-"}</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[12px] sm:text-[14px]">
+                  <span className="text-white/70">Account Number :</span>
+                  <span className="">{accountNumber || "-"}</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={feesLoading}
+              onClick={() => {
+                setSummaryOpen(false);
+                setPinOpen(true);
+                resetPinInputs();
+                window.setTimeout(() => focusPinSlot(0), 0);
+              }}
+              className="mt-6 h-[43px] sm:h-[48px] w-full rounded-[12px] bg-[#1D78FF] text-[12px] sm:text-[14px] font-semibold text-white transition hover:bg-[#1A6EF0] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Confirm Withdrawal
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {pinOpen ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-[520px] rounded-[18px] border border-[#2E2E3A] bg-[#0E0E16] p-3 sm:p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[18px] sm:text-[20px] font-bold text-white">Enter PIN</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setPinOpen(false);
+                }}
+                className="h-8 w-8 rounded-full border border-white/10 text-white/70 hover:bg-white/10"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="mt-2 text-[13px] text-white/70">Enter your 4-digit PIN to confirm this withdrawal</p>
+
+            <div className="mt-6 flex items-center justify-center gap-2">
+              {pinSlots.map((value, index) => (
+                <input
+                  key={index}
+                  ref={(el) => {
+                    pinInputsRef.current[index] = el;
+                  }}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  type="password"
+                  maxLength={1}
+                  value={value}
+                  onChange={(e) => handlePinChange(index, e.target.value)}
+                  onKeyDown={(e) => handlePinKeyDown(index, e)}
+                  className="h-[44px] w-[44px] rounded-lg border border-white/10 bg-white/[0.06] text-center text-[18px] text-white outline-none transition focus:border-[#1E7BFF]/80 focus:ring-2 focus:ring-[#1E7BFF]/30"
+                  aria-label={`PIN digit ${index + 1}`}
+                />
+              ))}
+            </div>
+
+            <button
+              type="button"
+              disabled={submitting || pinSlots.join("").length !== 4}
+              onClick={async () => {
+                const pin = pinSlots.join("");
+                setPinOpen(false);
+                const ok = await submitWithdrawalWithPin(pin);
+                if (!ok) {
+                  setPinOpen(true);
+                  window.setTimeout(() => focusPinSlot(0), 0);
+                }
+              }}
+              className="mt-6 h-[42px] sm:h-[48px] w-full rounded-[12px] bg-[#1D78FF] text-[14px] sm:text-[14px] font-semibold text-white transition hover:bg-[#1A6EF0] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {submitting ? "Processing..." : "Confirm"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {processingOpen ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-[520px] rounded-[18px] border border-[#2E2E3A] bg-[#0E0E16] p-5 text-center">
+            <h2 className="text-[14px] font-semibold text-white/90">Withdrawal Proceeded</h2>
+
+            <div className="mx-auto mt-5 flex h-[64px] w-[64px] items-center justify-center rounded-full bg-[#0B2A55]">
+              <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full bg-[#123E7A]">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M7 17L17 7"
+                    stroke="#7CB3FF"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M9 7H17V15"
+                    stroke="#7CB3FF"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[14px] border border-white/10 bg-white/[0.03] p-4 text-left">
+              <p className="text-[13px] font-semibold text-white">Withdrawal details</p>
+
+              <div className="mt-4 grid gap-3 text-[12px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Amount</span>
+                  <span className="text-white">{formatNgn(submittedDetails?.amount ?? amountNum)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Bank Name</span>
+                  <span className="text-white">{submittedDetails?.bankName ?? selectedBank?.name ?? "-"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Account Name</span>
+                  <span className="text-white">{submittedDetails?.accountName ?? accountName ?? "-"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Fees</span>
+                  <span className="text-white">{formatNgn(submittedDetails?.fee ?? fee)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Date</span>
+                  <span className="text-white">{formatDate(submittedDetails?.createdAt ?? new Date().toISOString())}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Reference</span>
+                  <div className="flex items-center gap-2">
+                    <span className="max-w-[210px] truncate text-white" title={submittedDetails?.reference ?? ""}>
+                      {submittedDetails?.reference ? shortReference(submittedDetails.reference) : "-"}
+                    </span>
+                    {submittedDetails?.reference ? (
+                      <button
+                        type="button"
+                        onClick={() => copyReferenceToClipboard(submittedDetails.reference)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-white/[0.04] text-white/70 transition hover:bg-white/[0.08] hover:text-white"
+                        aria-label="Copy reference"
+                        title="Copy reference"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path
+                            d="M8 7C8 5.89543 8.89543 5 10 5H19C20.1046 5 21 5.89543 21 7V16C21 17.1046 20.1046 18 19 18H10C8.89543 18 8 17.1046 8 16V7Z"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M6 19C4.89543 19 4 18.1046 4 17V8"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-[10px] bg-black/30 px-3 py-2 text-[11px] text-white/60">
+                Withdrawal is on its way to designated beneficiary, typically take less than 1min
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                closeAllModals();
+                router.push("/dashboard");
+              }}
+              className="mt-8 h-[42px] sm:h-[48px] w-full rounded-[12px] bg-[#3B82F6] text-[12px] sm:text-[14px] font-semibold text-white transition hover:bg-[#2F76EC]"
+            >
+              Home
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* ── History ── */}
       <div className="hidden rounded-[12px] border border-[#2D2A3F] bg-[#16161E] p-6 h-[84vh] lg:flex flex-col">

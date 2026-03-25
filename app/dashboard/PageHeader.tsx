@@ -120,7 +120,7 @@ export default function PageHeader({
           ) : null}
         </Link>
 
-        <div className="flex items-center gap-3 px-3 py-2 cursor-pointer border-l-1 border-[#2E2E3A]">
+        <div className="hidden md:flex items-center gap-3 px-3 py-2 cursor-pointer border-l-1 border-[#2E2E3A]">
           <div className="relative w-[35px] h-[35px] sm:w-[40px] sm:h-[40px] pt-[5px] overflow-hidden rounded-full bg-[#1A2135]">
             <Image src="/images/user.png" alt="" width={40} height={40} className="w-[35px] h-[35px] sm:w-[40px] sm:h-[40px]" />
           </div>

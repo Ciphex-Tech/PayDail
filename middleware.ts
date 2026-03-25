@@ -156,6 +156,16 @@ export function middleware(req: NextRequest) {
     }
   }
 
+  if (pathname.startsWith("/create-pin")) {
+    const allowed = req.cookies.get("allow_create_pin")?.value === "true";
+    if (!allowed) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/login";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
+
   const nonce = generateNonce();
   const csp = buildCsp(nonce, req);
 

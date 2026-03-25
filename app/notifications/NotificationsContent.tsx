@@ -122,7 +122,7 @@ export default function NotificationsContent({
           <p className="text-[13px] text-[#A1A5AF]">Stay updated with your account activity</p>
         </div>
 
-        <div className="rounded-[12px] bg-[#16161E] border border-[#2D2A3F] p-4">
+        <div className="rounded-[12px] sm:bg-[#16161E] sm:border sm:border-[#2D2A3F] sm:p-4">
           {items.length === 0 ? (
             <div className="px-2 py-8 text-[14px] text-[#9AA2AC] text-center">No notifications yet.</div>
           ) : (
@@ -136,7 +136,7 @@ export default function NotificationsContent({
                     type="button"
                     onClick={() => markAsRead(n.id)}
                     className={
-                      "w-full text-left rounded-[12px] border p-4 transition-all " +
+                      "w-full text-left rounded-[12px] border p-3 sm:p-4 transition-all " +
                       (isUnread
                         ? "border-[#3B82F6] bg-[#101727]"
                         : "border-[#2D2A3F] bg-[#1A1A25]")

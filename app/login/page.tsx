@@ -144,7 +144,18 @@ export default function LoginPage() {
         throw error;
       }
 
-      router.push("/dashboard?toast=login_success");
+      const st = await fetch("/api/pin/status", { method: "GET", cache: "no-store" });
+      if (st.ok) {
+        const json = (await st.json()) as { ok?: boolean; has_pin?: boolean };
+        const hasPin = Boolean(json.ok && json.has_pin);
+        if (hasPin) {
+          router.push("/dashboard?toast=login_success");
+          return;
+        }
+      }
+
+      await fetch("/api/auth/allow-create-pin", { method: "POST" });
+      router.push("/create-pin");
     } catch (e: any) {
       setErrorToastMessage(toastMessageForLoginError(e));
       setErrorToastOpen(true);
