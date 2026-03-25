@@ -179,6 +179,19 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
     refreshedByRealtimeRef.current = false;
   }, [initialWithdrawals]);
 
+  function selectBank(b: Bank) {
+    setSelectedBank(b);
+    setBankDropOpen(false);
+    setBankQuery("");
+    window.setTimeout(() => {
+      try {
+        (document.activeElement as HTMLElement | null)?.blur?.();
+      } catch {
+        // ignore
+      }
+    }, 0);
+  }
+
   async function copyReferenceToClipboard(reference: string) {
     const ref = String(reference || "").trim();
     if (!ref) return;
@@ -637,19 +650,9 @@ export default function WithdrawContent({ nairaBalance, initialWithdrawals }: Pr
                             onPointerDown={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
+                              selectBank(b);
                             }}
-                            onClick={() => {
-                              setSelectedBank(b);
-                              setBankDropOpen(false);
-                              setBankQuery("");
-                              window.setTimeout(() => {
-                                try {
-                                  (document.activeElement as HTMLElement | null)?.blur?.();
-                                } catch {
-                                  // ignore
-                                }
-                              }, 0);
-                            }}
+                            onClick={() => selectBank(b)}
                             className="w-full px-4 py-2 text-left text-[13px] text-white hover:bg-white/[0.06] transition-colors"
                           >
                             {b.name}
