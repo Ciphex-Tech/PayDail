@@ -65,9 +65,49 @@ export default function NotificationsContent({
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
+    let notifChannel: ReturnType<typeof supabase.channel> | null = null;
+    let usersChannel: ReturnType<typeof supabase.channel> | null = null;
+
     supabase.auth.getUser().then(({ data }) => {
-      setUserId(data?.user?.id ?? null);
+      const uid = data?.user?.id ?? null;
+      setUserId(uid);
+      if (!uid) return;
+
+      notifChannel = supabase
+        .channel(`notif-content-inserts-${uid}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${uid}` },
+          (payload) => {
+            const row = payload.new as NotificationRow;
+            setItems((prev) => [row, ...prev]);
+            if (!row.read) {
+              setDbUnreadCount((c) => c + 1);
+            }
+          }
+        )
+        .subscribe();
+
+      usersChannel = supabase
+        .channel(`notif-content-unread-${uid}`)
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "users_info", filter: `id=eq.${uid}` },
+          (payload) => {
+            const row = payload.new as any;
+            if (typeof row.unread_notifications === "number") {
+              setDbUnreadCount(row.unread_notifications);
+            }
+          }
+        )
+        .subscribe();
     });
+
+    return () => {
+      const supabase2 = createSupabaseBrowserClient();
+      if (notifChannel) supabase2.removeChannel(notifChannel);
+      if (usersChannel) supabase2.removeChannel(usersChannel);
+    };
   }, []);
 
   async function markAsRead(id: string) {
