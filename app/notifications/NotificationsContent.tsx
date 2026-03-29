@@ -59,6 +59,9 @@ export default function NotificationsContent({
   });
   const [userId, setUserId] = useState<string | null>(null);
   const unreadCount = useMemo(() => items.filter((n) => !n.read).length, [items]);
+  const [dbUnreadCount, setDbUnreadCount] = useState<number>(
+    initialNotifications.filter((n) => !n.read).length
+  );
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
@@ -67,17 +70,24 @@ export default function NotificationsContent({
     });
   }, []);
 
-  useEffect(() => {
-    if (!userId) return;
-    const supabase = createSupabaseBrowserClient();
-    supabase.from("users_info").update({ unread_notifications: unreadCount }).eq("id", userId);
-  }, [unreadCount, userId]);
-
   async function markAsRead(id: string) {
+    const alreadyRead = items.find((n) => n.id === id)?.read === true;
+    if (alreadyRead) return;
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     try {
-      const supabase = createSupabaseBrowserClient();
-      await supabase.from("notifications").update({ read: true }).eq("id", id);
+      const res = await fetch("/api/notifications/mark-read", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+
+      const json = (await res.json()) as any;
+      if (!res.ok || !json?.ok) {
+        throw new Error(String(json?.error ?? "Failed to mark as read"));
+      }
+      if (typeof json.unread_notifications === "number") {
+        setDbUnreadCount(json.unread_notifications);
+      }
     } catch {
       setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: false } : n)));
     }
@@ -173,7 +183,7 @@ export default function NotificationsContent({
       <aside className="lg:col-span-1">
         <section className="rounded-[12px] bg-[#16161E] border border-[#2D2A3F] p-5">
           <h3 className="text-[16px] font-semibold">Notification preferences</h3>
-          <p className="mt-1 text-[12px] text-[#A1A5AF]">Unread: {unreadCount}</p>
+          <p className="mt-1 text-[12px] text-[#A1A5AF]">Unread: {dbUnreadCount}</p>
 
           <div className="mt-6 grid gap-3">
             <div className="flex items-center justify-between">

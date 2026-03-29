@@ -32,27 +32,22 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-async function incrementUnread(admin: ReturnType<typeof createSupabaseAdminClient>, userId: string) {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const { data: info, error: readErr } = await admin
-      .from("users_info")
-      .select("unread_notifications")
-      .eq("id", userId)
-      .maybeSingle();
-    if (readErr) throw new Error(readErr.message);
+async function syncUnread(admin: ReturnType<typeof createSupabaseAdminClient>, userId: string) {
+  const { count, error: countErr } = await admin
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("read", false);
 
-    const current = Number((info as any)?.unread_notifications ?? 0);
-    const next = Math.max(0, current + 1);
+  if (countErr) throw new Error(countErr.message);
 
-    const { data: updated, error: updErr } = await admin
-      .from("users_info")
-      .update({ unread_notifications: next })
-      .eq("id", userId)
-      .eq("unread_notifications", (info as any)?.unread_notifications)
-      .select("unread_notifications");
-    if (updErr) throw new Error(updErr.message);
-    if (updated && updated.length > 0) return;
-  }
+  const unread = Number(count ?? 0);
+  const { error: upsertErr } = await admin
+    .from("users_info")
+    .update({ unread_notifications: unread })
+    .eq("id", userId);
+
+  if (upsertErr) throw new Error(upsertErr.message);
 }
 
 function isPaystackTestEnv(): boolean {
@@ -100,7 +95,7 @@ async function simulateTestWebhookOutcome(params: {
 
     if (!notifErr) {
       try {
-        await incrementUnread(admin, w.user_id);
+        await syncUnread(admin, w.user_id);
       } catch (e: any) {
         console.error("[withdraw.execute] unread_notifications increment error", {
           userId: w.user_id,
@@ -142,7 +137,7 @@ async function simulateTestWebhookOutcome(params: {
 
   if (!notifErr) {
     try {
-      await incrementUnread(admin, w.user_id);
+      await syncUnread(admin, w.user_id);
     } catch (e: any) {
       console.error("[withdraw.execute] unread_notifications increment error", {
         userId: w.user_id,

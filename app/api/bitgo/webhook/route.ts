@@ -20,27 +20,22 @@ function getPriceCache(): Record<string, PriceCacheEntry> {
   return g.__PAYDAIL_PRICE_CACHE__ as Record<string, PriceCacheEntry>;
 }
 
-async function incrementUnread(supabase: ReturnType<typeof createSupabaseAdminClient>, userId: string) {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const { data: info, error: readErr } = await supabase
-      .from("users_info")
-      .select("unread_notifications")
-      .eq("id", userId)
-      .maybeSingle();
-    if (readErr) throw new Error(readErr.message);
+async function syncUnread(supabase: ReturnType<typeof createSupabaseAdminClient>, userId: string) {
+  const { count, error: countErr } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("read", false);
 
-    const current = Number((info as any)?.unread_notifications ?? 0);
-    const next = Math.max(0, current + 1);
+  if (countErr) throw new Error(countErr.message);
 
-    const { data: updated, error: updErr } = await supabase
-      .from("users_info")
-      .update({ unread_notifications: next })
-      .eq("id", userId)
-      .eq("unread_notifications", (info as any)?.unread_notifications)
-      .select("unread_notifications");
-    if (updErr) throw new Error(updErr.message);
-    if (updated && updated.length > 0) return;
-  }
+  const unread = Number(count ?? 0);
+  const { error: upsertErr } = await supabase
+    .from("users_info")
+    .update({ unread_notifications: unread })
+    .eq("id", userId);
+
+  if (upsertErr) throw new Error(upsertErr.message);
 }
 
 type BitGoPayload = Record<string, any>;
@@ -548,7 +543,7 @@ export async function POST(req: Request) {
             });
           } else {
             try {
-              await incrementUnread(supabase, userInfo.id);
+              await syncUnread(supabase, userInfo.id);
             } catch (e: any) {
               console.error("/api/bitgo/webhook unread_notifications increment error", {
                 userId: userInfo.id,
@@ -601,7 +596,7 @@ export async function POST(req: Request) {
             });
           } else {
             try {
-              await incrementUnread(supabase, userInfo.id);
+              await syncUnread(supabase, userInfo.id);
             } catch (e: any) {
               console.error("/api/bitgo/webhook unread_notifications increment error", {
                 userId: userInfo.id,
