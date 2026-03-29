@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import TopToast from "@/app/_components/TopToast";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -48,23 +47,10 @@ export default function LoginPage() {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitizedEmail);
   }, [sanitizedEmail]);
 
-  function toastMessageForLoginError(err: any) {
-    const code = (err?.code as string | undefined)?.toLowerCase();
-    const status = err?.status as number | undefined;
-    const message = (err?.message as string | undefined) ?? "";
-
-    if (code === "invalid_credentials" || status === 400 || status === 401) {
-      return "Invalid email or password";
-    }
-
-    if (/invalid login credentials/i.test(message)) {
-      return "Invalid email or password";
-    }
-
-    if (/email not confirmed/i.test(message)) {
-      return "Please verify your email before logging in";
-    }
-
+  function toastMessageForLoginError(code: string) {
+    if (code === "invalid_credentials") return "Invalid email or password";
+    if (code === "email_not_confirmed") return "Please verify your email before logging in";
+    if (code === "email_and_password_required") return "Email and password are required";
     return "Couldn't process the request";
   }
 
@@ -133,31 +119,27 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.signInWithPassword({
-        email: sanitizedEmail,
-        password,
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: sanitizedEmail, password }),
       });
 
-      if (error) {
-        console.error("login failed", { message: error.message });
-        throw error;
+      const json = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        redirect?: string;
+      };
+
+      if (!res.ok || !json.ok) {
+        setErrorToastMessage(toastMessageForLoginError(json.error ?? ""));
+        setErrorToastOpen(true);
+        return;
       }
 
-      const st = await fetch("/api/pin/status", { method: "GET", cache: "no-store" });
-      if (st.ok) {
-        const json = (await st.json()) as { ok?: boolean; has_pin?: boolean };
-        const hasPin = Boolean(json.ok && json.has_pin);
-        if (hasPin) {
-          router.push("/dashboard?toast=login_success");
-          return;
-        }
-      }
-
-      await fetch("/api/auth/allow-create-pin", { method: "POST" });
-      router.push("/create-pin");
-    } catch (e: any) {
-      setErrorToastMessage(toastMessageForLoginError(e));
+      router.push(json.redirect ?? "/dashboard");
+    } catch {
+      setErrorToastMessage("Couldn't process the request");
       setErrorToastOpen(true);
     } finally {
       setLoading(false);
