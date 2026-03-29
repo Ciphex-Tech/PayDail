@@ -65,7 +65,12 @@ export async function POST(req: Request) {
     const redirect = hasPin ? "/dashboard?toast=login_success" : "/create-pin";
 
     const clientType = (req.headers.get("x-client-type") ?? "").toLowerCase();
-    const isMobile = clientType === "mobile" || clientType === "flutter";
+    const clientSecret = req.headers.get("x-mobile-secret") ?? "";
+    const expectedSecret = process.env.MOBILE_API_SECRET ?? "";
+    const isMobile =
+      (clientType === "mobile" || clientType === "flutter") &&
+      expectedSecret.length > 0 &&
+      clientSecret === expectedSecret;
 
     const responseBody: Record<string, unknown> = {
       ok: true,
