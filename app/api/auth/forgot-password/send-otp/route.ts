@@ -14,6 +14,17 @@ function sameOrigin(req: NextRequest) {
   return origin === new URL(req.url).origin;
 }
 
+function isMobileRequest(req: NextRequest): boolean {
+  const clientType = (req.headers.get("x-client-type") ?? "").toLowerCase();
+  const clientSecret = req.headers.get("x-mobile-secret") ?? "";
+  const expectedSecret = process.env.MOBILE_API_SECRET ?? "";
+  return (
+    (clientType === "mobile" || clientType === "flutter") &&
+    expectedSecret.length > 0 &&
+    clientSecret === expectedSecret
+  );
+}
+
 function maskEmail(email: string) {
   const [local, domain] = email.split("@");
   if (!local || !domain) return "";
@@ -23,8 +34,9 @@ function maskEmail(email: string) {
 
 export async function POST(req: NextRequest) {
   const secure = process.env.NODE_ENV === "production";
+  const mobile = isMobileRequest(req);
 
-  if (!sameOrigin(req)) {
+  if (!mobile && !sameOrigin(req)) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
 

@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
     const supabase = await createSupabaseServerClient();
 
-    const { error } = await supabase.auth.verifyOtp({
+    const { data: otpData, error } = await supabase.auth.verifyOtp({
       email,
       token,
       type: "email",
@@ -55,7 +55,24 @@ export async function POST(req: Request) {
       console.error("/api/auth/verify-otp users_info upsert error", e);
     }
 
-    return NextResponse.json({ ok: true });
+    const clientType = (req.headers.get("x-client-type") ?? "").toLowerCase();
+    const clientSecret = req.headers.get("x-mobile-secret") ?? "";
+    const expectedSecret = process.env.MOBILE_API_SECRET ?? "";
+    const isMobile =
+      (clientType === "mobile" || clientType === "flutter") &&
+      expectedSecret.length > 0 &&
+      clientSecret === expectedSecret;
+
+    const responseBody: Record<string, unknown> = { ok: true };
+
+    if (isMobile && otpData?.session) {
+      responseBody.access_token = otpData.session.access_token;
+      responseBody.refresh_token = otpData.session.refresh_token;
+      responseBody.expires_at = otpData.session.expires_at;
+      responseBody.token_type = "bearer";
+    }
+
+    return NextResponse.json(responseBody);
   } catch (e) {
     const message = e instanceof Error ? e.message : "unknown error";
     console.error("/api/auth/verify-otp unhandled error", e);

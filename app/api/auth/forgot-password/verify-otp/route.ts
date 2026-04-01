@@ -10,10 +10,22 @@ function sameOrigin(req: NextRequest) {
   return origin === new URL(req.url).origin;
 }
 
+function isMobileRequest(req: NextRequest): boolean {
+  const clientType = (req.headers.get("x-client-type") ?? "").toLowerCase();
+  const clientSecret = req.headers.get("x-mobile-secret") ?? "";
+  const expectedSecret = process.env.MOBILE_API_SECRET ?? "";
+  return (
+    (clientType === "mobile" || clientType === "flutter") &&
+    expectedSecret.length > 0 &&
+    clientSecret === expectedSecret
+  );
+}
+
 export async function POST(req: NextRequest) {
   const secure = process.env.NODE_ENV === "production";
+  const mobile = isMobileRequest(req);
 
-  if (!sameOrigin(req)) {
+  if (!mobile && !sameOrigin(req)) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
 
@@ -24,15 +36,20 @@ export async function POST(req: NextRequest) {
   }
 
   const cookieStore = await cookies();
-  const email = cookieStore.get("fp_email")?.value || "";
 
   let token = "";
+  let emailFromBody = "";
   try {
     const body = (await req.json()) as Record<string, unknown>;
     token = assertIsNonEmptyString(body.token, "token");
+    if (mobile && typeof body.email === "string") {
+      emailFromBody = body.email.trim().toLowerCase();
+    }
   } catch {
     return NextResponse.json({ ok: false, error: "Invalid code" }, { status: 400 });
   }
+
+  const email = mobile ? emailFromBody : (cookieStore.get("fp_email")?.value || "");
 
   if (!email) {
     return NextResponse.json({ ok: false, error: "Invalid code" }, { status: 400 });
@@ -48,6 +65,16 @@ export async function POST(req: NextRequest) {
 
     if (error || !data?.session) {
       return NextResponse.json({ ok: false, error: "Invalid code" }, { status: 400 });
+    }
+
+    if (mobile) {
+      return NextResponse.json({
+        ok: true,
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+        expires_at: data.session.expires_at,
+        token_type: "bearer",
+      }, { status: 200 });
     }
 
     // This cookie is the only client-readable signal (via middleware) that the
