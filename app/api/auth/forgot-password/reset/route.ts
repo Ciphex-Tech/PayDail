@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { assertPasswordReset } from "@/lib/validators/auth";
 import { rateLimitByKey } from "@/lib/security/rateLimit";
 
@@ -10,10 +11,22 @@ function sameOrigin(req: NextRequest) {
   return origin === new URL(req.url).origin;
 }
 
+function isMobileRequest(req: NextRequest): boolean {
+  const clientType = (req.headers.get("x-client-type") ?? "").toLowerCase();
+  const clientSecret = req.headers.get("x-mobile-secret") ?? "";
+  const expectedSecret = process.env.MOBILE_API_SECRET ?? "";
+  return (
+    (clientType === "mobile" || clientType === "flutter") &&
+    expectedSecret.length > 0 &&
+    clientSecret === expectedSecret
+  );
+}
+
 export async function POST(req: NextRequest) {
   const secure = process.env.NODE_ENV === "production";
+  const mobile = isMobileRequest(req);
 
-  if (!sameOrigin(req)) {
+  if (!mobile && !sameOrigin(req)) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
 
@@ -23,19 +36,55 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Couldn't process the request" }, { status: 429 });
   }
 
-  const cookieStore = await cookies();
-  const verified = cookieStore.get("fp_otp_verified")?.value === "true";
-
-  if (!verified) {
-    return NextResponse.json({ ok: false, error: "Couldn't process the request" }, { status: 403 });
-  }
-
   let password = "";
   try {
     const body = (await req.json()) as Record<string, unknown>;
     password = assertPasswordReset(body.password);
   } catch {
     return NextResponse.json({ ok: false, error: "Couldn't process the request" }, { status: 400 });
+  }
+
+  if (mobile) {
+    const authHeader = req.headers.get("authorization") ?? "";
+    const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+
+    if (!bearerToken) {
+      return NextResponse.json({ ok: false, error: "Couldn't process the request" }, { status: 401 });
+    }
+
+    try {
+      const admin = createSupabaseAdminClient();
+
+      const { data: userData, error: userError } = await admin.auth.getUser(bearerToken);
+      if (userError || !userData?.user) {
+        return NextResponse.json({ ok: false, error: "Couldn't process the request" }, { status: 401 });
+      }
+
+      const { error: updateError } = await admin.auth.admin.updateUserById(userData.user.id, { password });
+      if (updateError) {
+        const msg = (updateError.message || "").toLowerCase();
+        const isSameAsOld = msg.includes("same") && (msg.includes("old") || msg.includes("previous"));
+        if (isSameAsOld) {
+          return NextResponse.json(
+            { ok: false, code: "PASSWORD_SAME_AS_OLD", error: "Couldn't process the request" },
+            { status: 400 },
+          );
+        }
+        return NextResponse.json({ ok: false, error: "Couldn't process the request" }, { status: 400 });
+      }
+
+      return NextResponse.json({ ok: true }, { status: 200 });
+    } catch {
+      return NextResponse.json({ ok: false, error: "Couldn't process the request" }, { status: 400 });
+    }
+  }
+
+  // Web flow — relies on fp_otp_verified cookie set by verify-otp step
+  const cookieStore = await cookies();
+  const verified = cookieStore.get("fp_otp_verified")?.value === "true";
+
+  if (!verified) {
+    return NextResponse.json({ ok: false, error: "Couldn't process the request" }, { status: 403 });
   }
 
   try {
